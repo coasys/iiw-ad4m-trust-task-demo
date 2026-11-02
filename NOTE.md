@@ -1,6 +1,6 @@
 # AD4M and ToIP trust tasks: a runnable demo
 
-*Coasys, for IIW 43 / AIW Interop Day, November 2026. DRAFT: tested on AD4M `dev` at bd9d34e2e; the version numbers and commands below
+*Coasys, for IIW 43 / AIW Interop Day, November 2026. DRAFT: tested on AD4M v0.13.1-staging.6; the version numbers and commands below
 are checked against AD4M v0.13.1 once that release exists.*
 
 ## AD4M in three lines
@@ -12,8 +12,8 @@ links can re-check how a decision was made.
 
 ## What the demo does
 
-A builder runs an AD4M node on a laptop (tested: AD4M `dev` at bd9d34e2e with `@coasys/ad4m`
-0.13.1-staging.5; v0.13.1 once released) and two plain
+A builder runs an AD4M node on a laptop (tested: AD4M v0.13.1-staging.6 with `@coasys/ad4m`
+0.13.1-staging.6; v0.13.1 once released) and two plain
 JavaScript files with Node: `demo.mjs` for the AD4M side, one command per step, and `requester.mjs`
 for the other party.
 
@@ -74,8 +74,8 @@ demo uses `did:key`. With it, a trust task's `issuer` could be a rotatable AD4M 
 
 ## Run it
 
-`README.md` in the demo folder: until v0.13.1 is out, build the executor from AD4M `dev` at
-bd9d34e2e (afterwards, download the v0.13.1 executor), run
+`README.md` in the demo folder: until v0.13.1 is out, use the v0.13.1-staging.6
+executor (afterwards, the v0.13.1 one), run
 `./start-node.sh init` and `./start-node.sh run`, then `npm ci` and the steps one by one, or
 `npm test`. Node 22 or newer.
 

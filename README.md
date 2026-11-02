@@ -43,8 +43,9 @@ the page, and it hides them in the log it shows. Ctrl-C stops the page and the n
 
 Some details:
 
-- **Before the release is out**, step 1 says it cannot find v0.13.1 for download (see the note
-  below). Build the executor from source, or use one you were given, and give its path.
+- **Before the release is out**, step 1 downloads the staging build `v0.13.1-staging.6` instead.
+  If neither is public, it says so: build the executor from source, or use one you were given,
+  and give its path.
 - **The code in step 4.** The page starts the node with `AD4M_LOG_SECRETS=1`. With that setting
   the executor prints the code of each capability request to its log. A node started from the
   command line without it prints no code, so start the node from the page.
@@ -70,16 +71,12 @@ Some details:
 - Node.js 22 or newer, with npm.
 - The AD4M executor **v0.13.1**.
 
-> **Before the release is out.** v0.13.1 is expected on 2 November 2026; until then the release
-> links below return 404. This demo was tested with an executor built from the AD4M `dev` branch at
-> commit `bd9d34e2e` and `@coasys/ad4m` `0.13.1-staging.5` from npm. To build that commit, use
-> this instead of the first two lines of the build block below, then go on with `pnpm install`:
->
-> ```sh
-> git clone https://github.com/coasys/ad4m.git
-> cd ad4m
-> git checkout bd9d34e2e
-> ```
+> **Before the release is out.** Until v0.13.1 is published, the release links below return 404.
+> This demo was tested with the staging build: the executor from
+> <https://github.com/coasys/ad4m/releases/tag/v0.13.1-staging.6>
+> (`ad4m-cli-executor-linux-0.13.1-staging.6-x64` or `ad4m-cli-executor-macos-0.13.1-staging.6-aarch64`)
+> and `@coasys/ad4m` `0.13.1-staging.6` from npm. To build it from source, clone with
+> `--branch v0.13.1-staging.6` in the build block below.
 >
 > To move to the release: set `"@coasys/ad4m": "0.13.1"` in `package.json`, run `npm install`, and
 > use the v0.13.1 executor.

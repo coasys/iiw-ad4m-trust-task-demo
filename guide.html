@@ -153,10 +153,10 @@ SHA-256 of its body, and it carries the signed votes and the exact request the g
 
 <h2 id="setup">3. Get a node running</h2>
 <p>You need Linux or macOS, Node.js 22 or newer with npm, and the AD4M executor v0.13.1.</p>
-<div class="note"><b>Before the release is out.</b> v0.13.1 is expected on 2 November 2026; until then
-its download links return 404. This demo was tested with an executor built from the AD4M
-<code>dev</code> branch at commit <code>bd9d34e2e</code> and <code>@coasys/ad4m</code>
-<code>0.13.1-staging.5</code>. The README has the build steps.</div>
+<div class="note"><b>Before the release is out.</b> Until v0.13.1 is published, its download links
+return 404. This demo was tested with the staging build <code>v0.13.1-staging.6</code>: its executor
+from the AD4M releases page and <code>@coasys/ad4m</code> <code>0.13.1-staging.6</code>. Use the
+<code>0.13.1-staging.6</code> file names below until then.</div>
 <pre><code>chmod +x ad4m-cli-executor-linux-0.13.1-x64
 export AD4M_EXECUTOR="$PWD/ad4m-cli-executor-linux-0.13.1-x64"
 ./start-node.sh init      <span class="out"># creates .node/: the node's data and its admin credential</span>
