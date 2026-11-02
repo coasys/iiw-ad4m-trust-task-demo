@@ -153,7 +153,7 @@ $('btn-start').onclick = e => act(e.target, 's2', 'Start the node', 'POST', '/ap
   { multiUser:document.querySelector('input[name=mu]:checked').value === 'on', port:Number($('port').value) });
 $('btn-stop').onclick = e => act(e.target, 's2', 'Stop the node', 'POST', '/api/node/stop', {});
 $('btn-reset').onclick = e => {
-  if (!confirm('Start over? This stops the node and deletes .node/ (the node\'s data and its agent), .demo/ (people, the space, keys) and out/.')) return;
+  if (!confirm('Start over? This stops the node and deletes .node/ (the node\'s data and its agent), .demo/ and .demo-test/ (people, the space, keys) and out/.')) return;
   memo.runs = []; memo.verified = {}; memo.installed = null;
   act(e.target, 's2', 'Start over', 'POST', '/api/node/reset', {});
 };

@@ -59,7 +59,8 @@ Some details:
   port 12200 in step 2.
 - **Ports.** `UI_PORT` (default 8740) is the page. The node's API port is set in step 2 (default
   12100); Holochain uses the next two ports.
-- **Start over.** The button in step 2 stops the node and deletes `.node/`, `.demo/` and `out/`.
+- **Start over.** The button in step 2 stops the node and deletes `.node/`, `.demo/`, `.demo-test/`
+  and `out/`.
 
 ## The same with the command line
 

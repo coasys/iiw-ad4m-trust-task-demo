@@ -387,9 +387,10 @@ const routes = {
   async 'POST /api/node/reset'() {
     // Start over: the node's data and this folder's demo state belong together.
     await stopNode();
-    for (const path of [NODE_DIR, STATE, LOG_PATH, resolve(ROOT, 'out')]) rmSync(path, { recursive:true, force:true });
+    // .demo-test (npm test) names users of this node too.
+    for (const path of [NODE_DIR, STATE, resolve(ROOT, '.demo-test'), LOG_PATH, resolve(ROOT, 'out')]) rmSync(path, { recursive:true, force:true });
     loggedIn.clear(); forgetToken(null); handshake.requestId = null; handshake.refused = null;
-    return { removed:['.node', '.demo', 'out', '.node.log'] };
+    return { removed:['.node', '.demo', '.demo-test', 'out', '.node.log'] };
   },
 
   // Step 3: the node's agent, and people on the node.
