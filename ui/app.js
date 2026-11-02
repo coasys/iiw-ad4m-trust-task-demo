@@ -290,14 +290,17 @@ function diagram(state, end) {
 async function loadDefinition() {
   const res = await api('GET', '/api/flow/definition');
   if (!res.ok) return;
-  $('mapping').textContent = res.result.lines.join('\n');
-  $('links').textContent = res.result.links.join('\n');
+  const { header, rows } = res.result;
+  $('mapping').innerHTML = '<thead><tr><th>' + esc(header.task) + '</th><th>' + esc(header.ad4m) + '</th></tr></thead><tbody>'
+    + rows.map(r => '<tr class="' + (r.section ? 'section' : 'field') + '"><td>' + esc(r.task) + '</td><td>'
+      + (r.arrow ? '<span class="arrow">' + esc(r.arrow) + '</span>' : '') + esc(r.ad4m)
+      + (r.note ? '<span class="note">' + esc(r.note) + '</span>' : '') + '</td></tr>').join('') + '</tbody>';
   document.querySelectorAll('[data-diagram]').forEach(el => { el.innerHTML = ''; el.append(diagram(null)); });
   const latest = await api('GET', '/api/request/latest');
   showTask(latest.ok && latest.result.doc, false);
 }
 function showTask(doc, fresh) {
-  if (!doc) { $('task-json').textContent = '(No trust task yet. "Requester: sign a trust task" below makes one.)'; return; }
+  if (!doc) { $('task-json').textContent = '(No trust task yet. Below, first press 1 "Install the flow in the space", then 2 "Requester: sign a trust task".)'; return; }
   let text = esc(JSON.stringify(doc, null, 2));
   for (const key of ['issuer', 'recipient', 'subject', 'role']) text = text.replace(new RegExp('(&quot;' + key + '&quot;: )(&quot;[^&]*&quot;)'), '$1<span class="hl">$2</span>');
   $('task-json').innerHTML = (fresh ? '' : '<span class="muted">// the last one signed in this folder\n</span>') + text;
@@ -314,9 +317,10 @@ async function checkFlow(button) {
 }
 function renderArrive() {
   const joined = S.space && !S.space.owner;
-  $('arrive').classList.toggle('hidden', !!joined); $('arrive-joined').classList.toggle('hidden', !joined);
+  ['arrive-sign', 'arrive-take'].forEach(id => $(id).classList.toggle('hidden', !!joined)); $('arrive-joined').classList.toggle('hidden', !joined);
   ['btn-req-new', 'btn-req-receive', 'btn-req-tamper'].forEach(id => { $(id).disabled = memo.installed !== true; });
   if (memo.installed !== true) say('receive-status', 'Install the flow first.', 'muted');
+  else if ($('receive-status').textContent === 'Install the flow first.') say('receive-status', '');
 }
 $('btn-flow-check').onclick = e => checkFlow(e.target);
 $('btn-flow-install').onclick = async e => { const res = await act(e.target, 's6', 'Install the flow', 'POST', '/api/flow/install', {}); if (res.ok) checkFlow(); };

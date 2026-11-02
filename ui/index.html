@@ -160,30 +160,35 @@
     <div>
       <p class="who">AD4M space · flow <code>iiw://TrustTaskDecisionFlow</code></p>
       <div class="diagram" data-diagram></div>
-      <details><summary>Field by field</summary><pre id="mapping" class="small"></pre></details>
-      <details><summary>The same flow as the links AD4M stores</summary><pre id="links" class="small"></pre></details>
     </div>
   </div>
-  <h3>Is the flow in your space?</h3>
-  <p>The class and the flow are links in the space too (AD4M calls this social DNA), so every member's node has the same rules. A new space has none yet.</p>
-  <div class="row">
-    <button id="btn-flow-check" class="secondary">Check</button>
-    <button id="btn-flow-install">Install the flow in the space</button>
-  </div>
-  <div id="flow-status" class="status"></div>
-  <div id="arrive" class="sub">
-    <h3>A trust task arrives</h3>
-    <p>The requester signs a new task addressed to the space's DID. AD4M's side checks it with ToIP's own code (<code>consumeInbound</code>): proof, recipient, payload schema, freshness, duplicates. Only then does it store the JSON byte for byte and start a run of the flow.</p>
-    <div class="row">
-      <button id="btn-req-new">Requester: sign a trust task</button>
-      <button id="btn-req-receive">AD4M: check it and start the flow</button>
-      <button id="btn-req-tamper" class="secondary">Try one changed after signing</button>
-    </div>
-    <div id="receive-status" class="status"></div>
-  </div>
-  <div id="arrive-joined" class="sub hidden">
-    <p>This space was joined here. Trust tasks arrive at the node that made the space; the runs show up here in step 7 once their links have synced.</p>
-  </div>
+  <details class="mapping"><summary>Field by field: what each part of the trust task becomes in AD4M</summary><table id="mapping"></table></details>
+  <h3>Three buttons, in this order</h3>
+  <ol class="seq">
+    <li>
+      <p><b>Install the flow in the space.</b> The class and the flow are links in the space too (AD4M calls this social DNA), so every member's node has the same rules. A new space has none yet. "Check" looks whether they are there.</p>
+      <div class="row">
+        <button id="btn-flow-install">Install the flow in the space</button>
+        <button id="btn-flow-check" class="secondary">Check</button>
+      </div>
+      <div id="flow-status" class="status"></div>
+    </li>
+    <li id="arrive-sign">
+      <p><b>Sign a trust task.</b> The requester signs a new task addressed to the space's DID. It shows up on the left.</p>
+      <div class="row"><button id="btn-req-new">Requester: sign a trust task</button></div>
+    </li>
+    <li id="arrive-take">
+      <p><b>Let AD4M take it in.</b> AD4M's side checks it with ToIP's own code (<code>consumeInbound</code>): proof, recipient, payload schema, freshness, duplicates. Only then does it store the JSON byte for byte and start a run of the flow. To see a refusal: press "Try one changed after signing", then "AD4M: check it and start the flow" again.</p>
+      <div class="row">
+        <button id="btn-req-receive">AD4M: check it and start the flow</button>
+        <button id="btn-req-tamper" class="secondary">Try one changed after signing</button>
+      </div>
+      <div id="receive-status" class="status"></div>
+    </li>
+    <li id="arrive-joined" class="hidden">
+      <p>This space was joined here. Trust tasks arrive at the node that made the space; the runs show up here in step 7 once their links have synced.</p>
+    </li>
+  </ol>
   <div class="trace" data-for="s6"></div>
 </section>
 

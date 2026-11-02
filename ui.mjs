@@ -459,7 +459,7 @@ const routes = {
   'POST /api/space/join': ({ url, as }) => demo.join(String(url ?? '').trim(), { as:as || undefined, wait:30 }),
 
   // Step 6: the trust task and the flow.
-  'GET /api/flow/definition': () => ({ lines:demo.show().lines, flow:demo.show().flow, links:demo.showLinks() }),
+  'GET /api/flow/definition': () => { const { header, rows, flow } = demo.show(); return { header, rows, flow }; },
   async 'GET /api/flow/installed'() {
     return demo.openAs(viewer(), async ({ p }) => ({ installed:await demo.hasSocialDna(p), flows:await p.sdnaFlows() }));
   },

@@ -155,6 +155,8 @@ export function show() {
   const flow = trustTaskFlow();
   const n = state => (flow.states.find(s => s.name === state).consensusRule ?? flow.consensusRule).n;
   const votes = state => n(state) === 1 ? '1 vote' : n(state) + ' votes';
+  // [trust task, AD4M, extra]. Indented rows belong to the row above; extra.more marks a row that
+  // only wraps the one above in the terminal, extra.note is set off from the AD4M side.
   const rows = [
     ['ToIP trust task  acl/grant/0.2', 'AD4M social DNA in the space'],
     ['request ' + TYPE_URI.replace('https://trusttasks.org/spec/', ''), 'class IiwTrustTaskRequest (flow input)'],
@@ -164,11 +166,11 @@ export function show() {
     ['  payload.entry.subject, .role', '  subject, role'],
     ['  (document digest)', '  digest'],
     ['receiver checks: proof, recipient,', 'state Received'],
-    ['  schema, freshness, duplicates', '  (checked and stored; the group decides)'],
+    ['  schema, freshness, duplicates', '  (checked and stored; the group decides)', { more:true }],
     ['', ''],
     ['the maintainer decides', 'flow ' + FLOW],
-    ['  grant it', '  Accept: Received → Accepted   ' + votes('Accepted')],
-    ['  refuse it', '  Reject: Received → Rejected   ' + votes('Rejected')],
+    ['  grant it', '  Accept: Received → Accepted', { note:votes('Accepted') }],
+    ['  refuse it', '  Reject: Received → Rejected', { note:votes('Rejected') }],
     ['', ''],
     ['answer ' + RESPONSE_TYPE_URI.replace('https://trusttasks.org/spec/', ''), 'Accepted + flow receipt'],
     ['answer trust-task-error permissionDenied', 'Rejected + flow receipt'],
@@ -176,13 +178,23 @@ export function show() {
   ];
   // → the task becomes this in AD4M; ← AD4M's result goes back into the answer.
   const arrow = ([left, right], i) => {
-    if (i === 0 || !left.trim() || !right.trim() || right.trim().startsWith('(')) return '   ';
-    return left.startsWith('answer') || left.startsWith('  payload ext') ? '←  ' : '→  ';
+    if (i === 0 || !left.trim() || !right.trim() || right.trim().startsWith('(')) return '';
+    return left.startsWith('answer') || left.startsWith('  payload ext') ? '←' : '→';
   };
+  const ad4m = ([, right, extra]) => right + (extra?.note ? '   ' + extra.note : '');
   const width = Math.max(...rows.map(([left]) => left.length)) + 3;
-  const lines = rows.map((row, i) => (row[0].padEnd(width) + arrow(row, i) + row[1]).trimEnd());
+  const lines = rows.map((row, i) => (row[0].padEnd(width) + arrow(row, i).padEnd(3) + ad4m(row)).trimEnd());
   lines.splice(1, 0, '─'.repeat(width) + '   ' + '─'.repeat(rows[0][1].length));
-  return { lines, flow:flow.toJSON() };
+  // The same table as data, for the web page: one entry per section or field, wrapped rows joined.
+  const table = [];
+  for (const [i, row] of rows.entries()) {
+    const [left, right, extra] = row;
+    if (i === 0 || !left.trim()) continue;
+    const squash = text => text.trim().replace(/\s+/g, ' ');
+    if (extra?.more) { const last = table.at(-1); last.task += ' ' + squash(left); last.ad4m += ' ' + squash(right); continue; }
+    table.push({ section:!left.startsWith(' '), task:squash(left), arrow:arrow(row, i), ad4m:squash(right), note:extra?.note ?? null });
+  }
+  return { lines, header:{ task:rows[0][0].replace(/\s+/g, ' '), ad4m:rows[0][1] }, rows:table, flow:flow.toJSON() };
 }
 // show --links: the same social DNA as the links AD4M stores.
 export function showLinks() {
