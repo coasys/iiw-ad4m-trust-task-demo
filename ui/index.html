@@ -178,9 +178,9 @@
       <div class="row"><button id="btn-req-new">Requester: sign a trust task</button></div>
     </li>
     <li id="arrive-take">
-      <p><b>Let AD4M take it in.</b> AD4M's side checks it with ToIP's own code (<code>consumeInbound</code>): proof, recipient, payload schema, freshness, duplicates. Only then does it store the JSON byte for byte and start a run of the flow. To see a refusal: press "Try one changed after signing", then "AD4M: check it and start the flow" again.</p>
+      <p><b>Take it into the space.</b> The space's app (<code>demo.mjs</code>, not the AD4M node) checks it with ToIP's own code (<code>consumeInbound</code>): proof, recipient, payload schema, freshness, duplicates. Only then does the app write the JSON byte for byte into the space through the SDK, and AD4M starts a run of the flow. To see a refusal: press "Try one changed after signing", then "App checks it, AD4M starts the flow" again.</p>
       <div class="row">
-        <button id="btn-req-receive">AD4M: check it and start the flow</button>
+        <button id="btn-req-receive">App checks it, AD4M starts the flow</button>
         <button id="btn-req-tamper" class="secondary">Try one changed after signing</button>
       </div>
       <div id="receive-status" class="status"></div>

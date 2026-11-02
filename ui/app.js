@@ -331,10 +331,10 @@ $('btn-req-new').onclick = async e => {
 };
 $('btn-req-tamper').onclick = async e => {
   const res = await act(e.target, 's6', 'Requester: sign, then change it', 'POST', '/api/request/new', { tamper:true });
-  if (res.ok) { pending = res.result.file; showTask(res.result.doc, true); say('receive-status', 'Changed after signing: ' + esc(res.result.changed) + '. Now let AD4M check it.', 'wait'); }
+  if (res.ok) { pending = res.result.file; showTask(res.result.doc, true); say('receive-status', 'Changed after signing: ' + esc(res.result.changed) + '. Now let the app check it.', 'wait'); }
 };
 $('btn-req-receive').onclick = async e => {
-  const res = await act(e.target, 's6', 'AD4M: check it and start the flow', 'POST', '/api/request/receive', { file:pending });
+  const res = await act(e.target, 's6', 'App checks it, AD4M starts the flow', 'POST', '/api/request/receive', { file:pending });
   if (!res.ok) return say('receive-status', esc(res.error), 'no');
   const r = res.result;
   if (r.kind === 'accepted') say('receive-status', 'schema ✓ recipient ✓ fresh ✓ proof ✓ not a duplicate ✓<br>Stored byte for byte ✓, and a run of the flow started in state <b>' + esc(r.state) + '</b> (<code>' + esc(r.runUri) + '</code>). Go to step 7 to vote.', 'ok');

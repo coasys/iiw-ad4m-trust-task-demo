@@ -32,7 +32,8 @@ Open <http://127.0.0.1:8740>. The page takes you through eight steps:
 5. **Make a space.** A local space, a shared one (a neighbourhood, over a link server or Holochain),
    or join someone else's by its URL.
 6. **The trust task and the flow.** Install the flow in the space, let the requester sign a trust
-   task, and let AD4M check it and start a run of the flow.
+   task. The space's app checks it with ToIP's code and writes it into the space, and AD4M
+   starts a run of the flow.
 7. **Vote.** Each person votes with their own key; the diagram shows the state.
 8. **The receipt and the answer.** AD4M's flow receipt and the signed answer on one side, the
    requester's checks on the other.
