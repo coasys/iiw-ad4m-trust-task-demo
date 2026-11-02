@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A ToIP trust task, decided by an AD4M flow</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<header class="top">
+  <div class="title">
+    <strong>A ToIP trust task, decided by an AD4M flow</strong>
+    <span class="muted">IIW 43 demo · Coasys</span>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<div class="layout">
+<nav class="steps" id="nav">
+  <ol>
+    <li><a href="#s1">Get the executor</a></li>
+    <li><a href="#s2">Start the node</a></li>
+    <li><a href="#s3">Agent and people</a></li>
+    <li><a href="#s4">Connect this page</a></li>
+    <li><a href="#s5">Make a space</a></li>
+    <li><a href="#s6">Trust task and flow</a></li>
+    <li><a href="#s7">Vote</a></li>
+    <li><a href="#s8">Receipt and answer</a></li>
+  </ol>
+  <p class="muted small">Every button shows the <code>@coasys/ad4m</code> calls it made and what came back. Passwords, passphrases and tokens stay on the server.</p>
+</nav>
+
+<main>
+<section class="intro">
+  <p>Someone sends a signed ToIP trust task (<code>acl/grant/0.2</code>, "give Carol the role <code>member</code>") to an AD4M space. The people in the space vote through a flow. When the flow ends, AD4M makes a receipt of how they decided. The space sends back a signed answer with that receipt in it, and the sender checks it.</p>
+  <p>You run all of it here, on your own computer, against your own AD4M node. Go through the steps in order. The same steps exist as commands in <code>demo.mjs</code> and <code>requester.mjs</code>; this page calls the same functions.</p>
+</section>
+
+<!-- 1 -->
+<section class="step" id="s1">
+  <h2><span class="n">1</span> Get the executor</h2>
+  <p>The AD4M executor is the program that runs your node. It holds your keys, stores your data as signed links, and runs flows. It is one file. The page needs to know where it is.</p>
+  <div id="release" class="box muted">Looking up the release…</div>
+  <div class="row">
+    <button id="btn-download" disabled>Download it into this folder</button>
+    <span id="download-progress" class="muted"></span>
+  </div>
+  <p class="small muted">Or use a file you already have (a download, or one you built from source as in the README):</p>
+  <div class="row">
+    <input id="exe-path" placeholder="/full/path/to/ad4m-executor" size="48" aria-label="Path to the executor">
+    <button id="btn-use">Use this file</button>
+  </div>
+  <div id="exe-status" class="status"></div>
+  <div class="trace" data-for="s1"></div>
+</section>
+
+<!-- 2 -->
+<section class="step" id="s2">
+  <h2><span class="n">2</span> Start the node</h2>
+  <p>Your node is the executor running with its own data folder (<code>.node/</code>). The page starts it the way <code>start-node.sh</code> does. The first start creates the folder and a random admin credential: whoever has that file controls the node. This page's server reads it and never shows it.</p>
+  <fieldset class="row">
+    <legend>Multi-user mode</legend>
+    <label><input type="radio" name="mu" value="off" checked> Off: one person, the node's own agent</label>
+    <label><input type="radio" name="mu" value="on"> On: more people on this node, each with their own DID</label>
+  </fieldset>
+  <p class="small muted">A yes needs two voters. With multi-user off you are alone on this node, so you can only say no, unless a second node joins your space (step 5).</p>
+  <div class="row">
+    <label>API port <input id="port" type="number" min="1024" max="65000" value="12100" style="width:7em"></label>
+    <button id="btn-start">Start the node</button>
+    <button id="btn-stop" class="secondary">Stop the node</button>
+    <button id="btn-reset" class="danger">Start over…</button>
+  </div>
+  <div id="node-status" class="status"></div>
+  <details open>
+    <summary>The node's log (last lines, secrets hidden)</summary>
+    <pre id="log" class="log"></pre>
+  </details>
+  <div class="trace" data-for="s2"></div>
+</section>
+
+<!-- 3 -->
+<section class="step" id="s3">
+  <h2><span class="n">3</span> The node's agent, and people on it</h2>
+  <p>An AD4M agent is a key pair and a <code>did:key</code>. Everything the agent writes is signed with that key. A new node has no agent yet: you create one and protect it with a passphrase. After every restart the agent is locked, and you unlock it with the same passphrase.</p>
+  <div id="agent-box"></div>
+  <div id="users-box" class="sub">
+    <h3>People on this node (multi-user mode)</h3>
+    <p>In multi-user mode one node holds several people, each with their own DID and keys. Each has a login (email and password). The page makes a random throwaway password for each and keeps it in <code>.demo/people.json</code>, so it can log them in later. Logging in gives a token for that person.</p>
+    <div class="row">
+      <input id="user-name" placeholder="alice" size="14" aria-label="Name of the new person">
+      <button id="btn-user-add">Add this person</button>
+    </div>
+    <div id="users-list"></div>
+  </div>
+  <div class="trace" data-for="s3"></div>
+</section>
+
+<!-- 4 -->
+<section class="step" id="s4">
+  <h2><span class="n">4</span> Connect this page to your agent</h2>
+  <p>An app never gets your keys or the admin credential. It asks the node for a <b>capability</b>: the right to act as your agent. The node answers with a one-time 6-digit code that only you can see. Here the node writes the code to its log. You read it there and type it into the app. Only then does the app get a token. That way a web page can ask, but only the person at the node can say yes.</p>
+  <p class="small muted">In the ADAM launcher the code shows up in a window. A bare executor started by this page approves the request on its own and prints the code to its log (that is what <code>AD4M_LOG_SECRETS=1</code> does).</p>
+  <ol class="hs" id="hs-steps">
+    <li data-k="ask">The app asks</li>
+    <li data-k="code">The node writes a code to its log</li>
+    <li data-k="enter">You type the code here</li>
+    <li data-k="ok">The app has a token</li>
+  </ol>
+  <div class="row"><button id="btn-hs-request">Ask for access</button></div>
+  <div id="hs-logline" class="box hidden"></div>
+  <div class="row hidden" id="hs-enter">
+    <label>Code from the log <input id="hs-code" inputmode="numeric" maxlength="6" size="8" autocomplete="off"></label>
+    <button id="btn-hs-redeem">Send the code</button>
+  </div>
+  <div id="hs-status" class="status"></div>
+  <div class="trace" data-for="s4"></div>
+</section>
+
+<!-- 5 -->
+<section class="step" id="s5">
+  <h2><span class="n">5</span> Make a space</h2>
+  <p>A space (AD4M calls it a perspective) is a graph of signed links. The trust tasks, the flow and the votes all go in it. A local space stays on this node. A <b>neighbourhood</b> is a shared space: other nodes join it by its URL, and AD4M syncs the links between them.</p>
+  <div id="space-current" class="status"></div>
+  <div class="cols3" id="space-choices">
+    <div class="choice">
+      <h3>Local space</h3>
+      <p>Only this node. Needs no network. In multi-user mode a person on this node owns it and the node's agent is in it too, so the two of them can vote.</p>
+      <label class="small">Owner <select class="owner-select" id="local-owner"></select></label>
+      <button id="btn-space-local">Make a local space</button>
+    </div>
+    <div class="choice">
+      <h3>Shared space</h3>
+      <p>Make the space and publish it as a neighbourhood. A link language moves the links between nodes. Pick one:</p>
+      <div id="templates" class="small muted">Connect first (step 4) to list them.</div>
+      <label class="small">Link server <input id="server-url" value="https://link.ad4m.dev" size="22"></label>
+      <label class="small">Owner <select class="owner-select" id="share-owner"></select></label>
+      <button id="btn-space-share">Make and share</button>
+    </div>
+    <div class="choice">
+      <h3>Join a shared space</h3>
+      <p>Someone gave you a <code>neighbourhood://…</code> URL. The flow comes in with the space's links; that takes a few seconds with the link server.</p>
+      <input id="join-url" placeholder="neighbourhood://Qm…" aria-label="Neighbourhood URL">
+      <label class="small">Join as <select class="person-select" id="join-as"></select></label>
+      <button id="btn-space-join">Join</button>
+    </div>
+  </div>
+  <div class="trace" data-for="s5"></div>
+</section>
+
+<!-- 6 -->
+<section class="step" id="s6">
+  <h2><span class="n">6</span> The trust task and the flow it becomes</h2>
+  <p>On the left is a trust task as the requester sends it: plain JSON with an Ed25519 proof (<code>eddsa-jcs-2022</code>). On the right is what AD4M makes of it: a class that stores the request, and a flow, a small state machine. Votes move a run of the flow from state to state. Two votes accept the request. One vote rejects it.</p>
+  <div class="two">
+    <div>
+      <p class="who">Requester · trust task</p>
+      <pre id="task-json" class="json small"></pre>
+    </div>
+    <div>
+      <p class="who">AD4M space · flow <code>iiw://TrustTaskDecisionFlow</code></p>
+      <div class="diagram" data-diagram></div>
+      <details><summary>Field by field</summary><pre id="mapping" class="small"></pre></details>
+      <details><summary>The same flow as the links AD4M stores</summary><pre id="links" class="small"></pre></details>
+    </div>
+  </div>
+  <h3>Is the flow in your space?</h3>
+  <p>The class and the flow are links in the space too (AD4M calls this social DNA), so every member's node has the same rules. A new space has none yet.</p>
+  <div class="row">
+    <button id="btn-flow-check" class="secondary">Check</button>
+    <button id="btn-flow-install">Install the flow in the space</button>
+  </div>
+  <div id="flow-status" class="status"></div>
+  <div id="arrive" class="sub">
+    <h3>A trust task arrives</h3>
+    <p>The requester signs a new task addressed to the space's DID. AD4M's side checks it with ToIP's own code (<code>consumeInbound</code>): proof, recipient, payload schema, freshness, duplicates. Only then does it store the JSON byte for byte and start a run of the flow.</p>
+    <div class="row">
+      <button id="btn-req-new">Requester: sign a trust task</button>
+      <button id="btn-req-receive">AD4M: check it and start the flow</button>
+      <button id="btn-req-tamper" class="secondary">Try one changed after signing</button>
+    </div>
+    <div id="receive-status" class="status"></div>
+  </div>
+  <div id="arrive-joined" class="sub hidden">
+    <p>This space was joined here. Trust tasks arrive at the node that made the space; the runs show up here in step 7 once their links have synced.</p>
+  </div>
+  <div class="trace" data-for="s6"></div>
+</section>
+
+<!-- 7 -->
+<section class="step" id="s7">
+  <h2><span class="n">7</span> Vote</h2>
+  <p>Each received task has its own run of the flow. Every person in the space votes with their own key; AD4M signs each vote as a link. Nobody sets the state directly: each node works it out from the signed votes it holds. The highlighted box is the state this node sees now.</p>
+  <div class="row"><button id="btn-runs" class="secondary">Refresh</button> <span class="muted small" id="runs-note"></span></div>
+  <div id="runs"></div>
+  <div class="trace" data-for="s7"></div>
+</section>
+
+<!-- 8 -->
+<section class="step" id="s8">
+  <h2><span class="n">8</span> The receipt, the answer, and the requester's check</h2>
+  <p>When a run ends, AD4M makes a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. The space wraps it into a signed trust-task answer. The requester checks the answer against the request it sent.</p>
+  <div class="row"><label>Task <select id="answer-task"></select></label></div>
+  <div class="two">
+    <div class="panel">
+      <p class="who">AD4M space</p>
+      <button id="btn-respond">Make the receipt and the answer</button>
+      <button id="btn-check-receipt" class="secondary">Check the receipt on this node</button>
+      <div id="space-side"></div>
+    </div>
+    <div class="panel">
+      <p class="who">Requester</p>
+      <button id="btn-verify">Check the answer</button>
+      <div id="req-side"></div>
+    </div>
+  </div>
+  <div id="links-between"></div>
+  <p class="small muted">What this does not show: AD4M does not make or check the <code>eddsa-jcs-2022</code> proofs itself; this demo holds the space's trust-task key in its own code. Accepting records the grant in the space; no AD4M permission changes. The requester checks the receipt's hash and that it names its exact request; the AD4M signatures inside the receipt are checked by the members' nodes (<code>verifyFlowReceipt</code>).</p>
+  <div class="trace" data-for="s8"></div>
+</section>
+</main>
+</div>
+
+<template id="diagram-tpl">
+<svg viewBox="0 0 760 250" role="img" aria-label="Flow: Received goes to Accepted with 2 votes, or to Rejected with 1 vote; each end mints a flow receipt that goes into the answer">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a93a5"/></marker></defs>
+  <g data-state="Received"><rect class="box start" x="20" y="95" width="170" height="64" rx="10"/>
+  <text x="105" y="122" text-anchor="middle">Received</text>
+  <text class="small" x="105" y="142" text-anchor="middle">checked and stored</text></g>
+  <g data-state="Accepted"><rect class="box ok" x="330" y="20" width="170" height="64" rx="10"/>
+  <text x="415" y="47" text-anchor="middle">Accepted</text>
+  <text class="small" x="415" y="67" text-anchor="middle">needs 2 votes</text></g>
+  <g data-state="Rejected"><rect class="box no" x="330" y="170" width="170" height="64" rx="10"/>
+  <text x="415" y="197" text-anchor="middle">Rejected</text>
+  <text class="small" x="415" y="217" text-anchor="middle">needs 1 vote</text></g>
+  <path class="arrow" d="M190,115 C260,90 270,60 328,54" marker-end="url(#a)"/>
+  <text class="small" x="232" y="72">Accept</text>
+  <path class="arrow" d="M190,140 C260,165 270,195 328,200" marker-end="url(#a)"/>
+  <text class="small" x="232" y="190">Reject</text>
+  <g data-state="response"><rect class="box" x="580" y="20" width="160" height="64" rx="10"/>
+  <text x="660" y="47" text-anchor="middle">#response</text>
+  <text class="small" x="660" y="67" text-anchor="middle">+ flow receipt</text></g>
+  <g data-state="error"><rect class="box" x="580" y="170" width="160" height="64" rx="10"/>
+  <text x="660" y="197" text-anchor="middle">trust-task-error</text>
+  <text class="small" x="660" y="217" text-anchor="middle">permissionDenied + receipt</text></g>
+  <path class="arrow" d="M500,52 L578,52" marker-end="url(#a)"/>
+  <path class="arrow" d="M500,202 L578,202" marker-end="url(#a)"/>
+  <text class="small" x="105" y="185" text-anchor="middle">flow input: IiwTrustTaskRequest</text>
+</svg>
+</template>
+<script src="app.js"></script>
+</body>
+</html>

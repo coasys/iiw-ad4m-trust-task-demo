@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A ToIP trust task, decided by an AD4M flow</title>
+<style>
+  :root { --ink:#1d2330; --muted:#5b6475; --line:#d9dde5; --bg:#ffffff; --code:#f4f6f9; --accent:#2f5bd3; --ok:#1f7a4d; --no:#b4412f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e6e9ef; --muted:#a3abba; --line:#3a4150; --bg:#161a22; --code:#20252f; --accent:#7ea2ff; --ok:#5cc28e; --no:#ee8a77; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:1.75rem; line-height:1.25; margin:0 0 6px; }
+  h2 { font-size:1.3rem; margin:40px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
+  h3 { font-size:1.05rem; margin:24px 0 8px; }
+  p, li { max-width:72ch; }
+  .lede { color:var(--muted); margin-top:0; }
+  code { font:0.9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:var(--code); padding:1px 4px; border-radius:4px; }
+  pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow-x:auto; font:13.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre code { background:none; padding:0; }
+  .out { color:var(--muted); }
+  table { border-collapse:collapse; width:100%; font-size:0.95rem; margin:10px 0; table-layout:fixed; }
+  td code, th code { overflow-wrap:anywhere; }
+  .two > div { min-width:0; }
+  th, td { text-align:left; vertical-align:top; padding:7px 8px; border-bottom:1px solid var(--line); }
+  th { font-weight:600; }
+  .note { border-left:3px solid var(--accent); padding:6px 12px; margin:14px 0; background:var(--code); border-radius:0 6px 6px 0; }
+  nav ol { padding-left:20px; columns:2; column-gap:30px; }
+  @media (max-width:560px) { nav ol { columns:1; } pre { font-size:12.5px; } }
+  svg { width:100%; height:auto; display:block; margin:12px 0; }
+  svg text { fill:var(--ink); font:13px -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  svg .small { font-size:11.5px; fill:var(--muted); }
+  svg .box { fill:var(--code); stroke:var(--line); stroke-width:1.5; }
+  svg .start { stroke:var(--accent); }
+  svg .ok { stroke:var(--ok); }
+  svg .no { stroke:var(--no); }
+  svg .arrow { stroke:var(--muted); stroke-width:1.6; fill:none; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:700px) { .two { grid-template-columns:1fr; } }
+  .who { font-size:0.8rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin:0 0 4px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>A ToIP trust task, decided by an AD4M flow</h1>
+<p class="lede">A runnable demo for builders: Coasys, for IIW 43 / AIW Interop Day, November 2026.</p>
+
+<p>Someone asks your group to give Carol the role <code>member</code>. They send the ask as a ToIP
+trust task: a small JSON document of type <code>acl/grant/0.2</code>, signed with their
+<code>did:key</code>. Your group keeps its work in an AD4M space. The space holds a flow, a small
+state machine with voting rules. Two members vote. When the flow ends, AD4M makes a receipt of how
+they decided, and the space answers the requester with a signed trust-task response that carries
+the receipt. The requester checks the answer on their own.</p>
+
+<p>You run all of it: one AD4M node on your laptop and two JavaScript files with Node.
+<code>demo.mjs</code> is the AD4M side, one command per step, written with plain
+<code>@coasys/ad4m</code> SDK calls. <code>requester.mjs</code> is the other party.</p>
+
+<nav><ol>
+  <li><a href="#task">The trust task</a></li>
+  <li><a href="#flow">The flow it becomes</a></li>
+  <li><a href="#setup">Get a node running</a></li>
+  <li><a href="#local">Local mode: one node</a></li>
+  <li><a href="#shared">Shared mode: two nodes</a></li>
+  <li><a href="#offline">Offline</a></li>
+  <li><a href="#limits">What it does not show</a></li>
+  <li><a href="#next">Next: read the source</a></li>
+</ol></nav>
+
+<h2 id="task">1. The trust task</h2>
+<p>This is what <code>node requester.mjs request</code> writes to <code>out/request.json</code> (DIDs
+shortened):</p>
+<pre><code>{
+  "id": "urn:uuid:971c3202-…",
+  "type": "https://trusttasks.org/spec/acl/grant/0.2",
+  "issuer": "did:key:z6MkeZd6…",          <span class="out">← the requester</span>
+  "recipient": "did:key:z6MksgYv…",       <span class="out">← the space's trust-task key</span>
+  "issuedAt": "2026-11-01T23:13:40.512Z",
+  "expiresAt": "2026-11-02T00:13:40.512Z",
+  "payload": {
+    "entry": {
+      "subject": "did:key:z6MkhaXg…",     <span class="out">← Carol</span>
+      "role": "member",
+      "act": { "scope": "contexts", "contexts": ["iiw-demo/notes"] },
+      "keys": { "scope": "none" },
+      "capabilities": { "scope": "ceiling" }
+    },
+    "reason": "IIW 43 demo: let Carol join the notes space"
+  },
+  "proof": { "type": "DataIntegrityProof", "cryptosuite": "eddsa-jcs-2022", … }
+}</code></pre>
+<p>The signing and checking use ToIP's own TypeScript libraries, <code>@openvtc/trust-tasks</code>
+and <code>@openvtc/trust-tasks-proof</code>.</p>
+
+<h2 id="flow">2. The flow it becomes</h2>
+<p>In the space the task becomes social DNA: a class for the stored request, and a flow that runs on
+it. Both are links in the space, so every member's node has the same rules.</p>
+
+<svg viewBox="0 0 760 250" role="img" aria-label="Flow: Received goes to Accepted with 2 votes, or to Rejected with 1 vote; each end mints a flow receipt that goes into the answer">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a93a5"/></marker></defs>
+  <rect class="box start" x="20" y="95" width="170" height="64" rx="10"/>
+  <text x="105" y="122" text-anchor="middle">Received</text>
+  <text class="small" x="105" y="142" text-anchor="middle">checked and stored</text>
+  <rect class="box ok" x="330" y="20" width="170" height="64" rx="10"/>
+  <text x="415" y="47" text-anchor="middle">Accepted</text>
+  <text class="small" x="415" y="67" text-anchor="middle">needs 2 votes</text>
+  <rect class="box no" x="330" y="170" width="170" height="64" rx="10"/>
+  <text x="415" y="197" text-anchor="middle">Rejected</text>
+  <text class="small" x="415" y="217" text-anchor="middle">needs 1 vote</text>
+  <path class="arrow" d="M190,115 C260,90 270,60 328,54" marker-end="url(#a)"/>
+  <text class="small" x="232" y="72">Accept</text>
+  <path class="arrow" d="M190,140 C260,165 270,195 328,200" marker-end="url(#a)"/>
+  <text class="small" x="232" y="190">Reject</text>
+  <rect class="box" x="580" y="20" width="160" height="64" rx="10"/>
+  <text x="660" y="47" text-anchor="middle">#response</text>
+  <text class="small" x="660" y="67" text-anchor="middle">+ flow receipt</text>
+  <rect class="box" x="580" y="170" width="160" height="64" rx="10"/>
+  <text x="660" y="197" text-anchor="middle">trust-task-error</text>
+  <text class="small" x="660" y="217" text-anchor="middle">permissionDenied + receipt</text>
+  <path class="arrow" d="M500,52 L578,52" marker-end="url(#a)"/>
+  <path class="arrow" d="M500,202 L578,202" marker-end="url(#a)"/>
+  <text class="small" x="105" y="185" text-anchor="middle">flow input: IiwTrustTaskRequest</text>
+</svg>
+
+<p>The flow in <code>demo.mjs</code> (<code>trustTaskFlow()</code>):</p>
+<pre><code>const flow = new SHACLFlow('TrustTaskDecision', 'iiw://');   // iiw://TrustTaskDecisionFlow
+flow.inputTypes = ['IiwTrustTaskRequest'];
+flow.consensusRule = { n: 1 };
+flow.addState({ name:'Received', value:0 });
+flow.addState({ name:'Accepted', value:1, consensusRule:{ n:2 } });
+flow.addState({ name:'Rejected', value:2, consensusRule:{ n:1 } });
+flow.addTransition({ actionName:'Accept', fromState:'Received', toState:'Accepted', actions:[] });
+flow.addTransition({ actionName:'Reject', fromState:'Received', toState:'Rejected', actions:[] });</code></pre>
+
+<table>
+  <tr><th>Trust task <code>acl/grant/0.2</code></th><th>AD4M social DNA in the space</th></tr>
+  <tr><td>the signed JSON, as received</td><td><code>IiwTrustTaskRequest.raw</code>, byte for byte</td></tr>
+  <tr><td><code>id</code>, <code>type</code>, <code>issuer</code>, <code>recipient</code>, <code>issuedAt</code>, <code>expiresAt</code>, <code>entry.subject</code>, <code>entry.role</code></td><td>the class's other fields, copies for queries</td></tr>
+  <tr><td>receiver checks: proof, recipient, schema, freshness, duplicates</td><td>run before anything is stored; then state <code>Received</code></td></tr>
+  <tr><td>the maintainer grants it</td><td><code>Accept: Received → Accepted</code>, 2 votes</td></tr>
+  <tr><td>the maintainer refuses it</td><td><code>Reject: Received → Rejected</code>, 1 vote</td></tr>
+  <tr><td>answer <code>acl/grant/0.2#response</code></td><td><code>Accepted</code> + flow receipt in <code>payload.ext["org.coasys.ad4m"]</code></td></tr>
+  <tr><td>answer <code>trust-task-error</code>, <code>permissionDenied</code></td><td><code>Rejected</code> + flow receipt in <code>payload.details["org.coasys.ad4m"]</code></td></tr>
+</table>
+<p>Each vote is a link signed by the voter's AD4M agent. Minting and checking a receipt work the
+state out from those votes each time (<code>status</code> shows the state the node last worked
+out). <code>n:2</code> counts any two distinct voters in the space; it does not check roles. The flow receipt is content-addressed: its address is the
+SHA-256 of its body, and it carries the signed votes and the exact request the group decided on.
+<code>node demo.mjs show</code> prints this table; <code>show --links</code> prints the links AD4M stores.</p>
+
+<h2 id="setup">3. Get a node running</h2>
+<p>You need Linux or macOS, Node.js 22 or newer with npm, and the AD4M executor v0.13.1.</p>
+<div class="note"><b>Before the release is out.</b> v0.13.1 is expected on 2 November 2026; until then
+its download links return 404. This demo was tested with an executor built from the AD4M
+<code>dev</code> branch at commit <code>bd9d34e2e</code> and <code>@coasys/ad4m</code>
+<code>0.13.1-staging.5</code>. The README has the build steps.</div>
+<pre><code>chmod +x ad4m-cli-executor-linux-0.13.1-x64
+export AD4M_EXECUTOR="$PWD/ad4m-cli-executor-linux-0.13.1-x64"
+./start-node.sh init      <span class="out"># creates .node/: the node's data and its admin credential</span>
+./start-node.sh run       <span class="out"># in its own terminal; Ctrl-C stops it</span>
+npm ci                    <span class="out"># in a second terminal</span></code></pre>
+
+<h2 id="local">4. Local mode: one node</h2>
+<p>Two people on one node. Bob is the node's own agent. Alice is a second user on the same node
+(AD4M's multi-user mode) with her own DID. Each signs their own votes.</p>
+<pre><code>node demo.mjs agent --as bob          <span class="out"># creates the node's agent; asks for a passphrase twice</span>
+node demo.mjs users add alice         <span class="out"># multi-user mode on; alice gets her own DID</span>
+node demo.mjs show                    <span class="out"># the trust task next to the flow</span>
+node demo.mjs space                   <span class="out"># alice makes the space and installs the flow; bob is in it too</span>
+
+node requester.mjs request            <span class="out"># the requester signs a task to the space</span>
+node demo.mjs receive out/request.json
+node demo.mjs vote accept --as alice --why "Carol should join"
+node demo.mjs vote accept --as bob --why "Agreed"
+node demo.mjs respond                 <span class="out"># mint the receipt, check it, sign the answer</span>
+node requester.mjs verify             <span class="out"># the requester's own checks</span></code></pre>
+<p>The passphrase is not shown while you type and is not written anywhere. After a node restart
+the agent is locked; run <code>node demo.mjs agent</code> again. <code>agent --remember</code> keeps
+the passphrase in <code>.demo/agent-passphrase</code> (readable only by you) if you prefer.
+<code>users add</code> makes a random throwaway password for each person and keeps it in
+<code>.demo/people.json</code>, so <code>--as alice</code> can log her in.</p>
+<p>What you see at the end:</p>
+<pre class="out"><code>bob votes accept: decided, Received → Accepted, voters did:key:z6Mkfx…DD8q + did:key:z6Mkmt…ooZ4
+flow receipt ad4m://flow/receipt/1ce73d05…
+verifyFlowReceipt: verified ✓  terminal state Accepted
+signed https://trusttasks.org/spec/acl/grant/0.2#response → out/response-….json
+✓ proof  ✓ addressed to me  ✓ thread  ✓ kind  ✓ receipt hash  ✓ decided on my exact document  ✓ outcome</code></pre>
+<p>Try the other paths: on a new request, <code>vote reject --as bob</code> ends the flow at
+<code>Rejected</code> and <code>respond</code> signs a <code>trust-task-error</code> that still
+carries the receipt. Change the request after signing and <code>receive</code> refuses it with
+<code>proofInvalid</code>; nothing is stored. <code>npm test</code> runs all of these with
+assertions.</p>
+
+<h2 id="shared">5. Shared mode: two nodes</h2>
+<p>Alice and bob each run their own node. Alice shares the space as a <b>neighbourhood</b>; bob
+joins it by URL; AD4M syncs the space's links, votes included, between the nodes. Each person
+needs their own copy of the demo folder and a running node.</p>
+<div class="two">
+<div><p class="who">Alice's machine</p>
+<pre><code>node demo.mjs agent --as alice
+node demo.mjs space
+node demo.mjs share
+<span class="out">neighbourhood neighbourhood://Qm…</span></code></pre></div>
+<div><p class="who">Bob's machine</p>
+<pre><code>node demo.mjs agent --as bob
+node demo.mjs join neighbourhood://Qm…
+<span class="out">flow iiw://TrustTaskDecisionFlow synced in</span></code></pre></div>
+<div><pre><code>node requester.mjs request
+node demo.mjs receive out/request.json
+node demo.mjs vote accept --as alice</code></pre></div>
+<div><pre><code>node demo.mjs status            <span class="out"># until the task shows</span>
+node demo.mjs vote accept --as bob</code></pre></div>
+<div><pre><code>node demo.mjs respond
+node requester.mjs verify</code></pre></div>
+<div><pre><code><span class="out"># copy alice's out/response-….json here as answer.json</span>
+node demo.mjs check-receipt answer.json</code></pre></div>
+</div>
+<p>If bob's vote has not reached alice's node yet, <code>respond</code> says the flow is not
+finished; run it again a few seconds later. The requester only talks to alice's node, which holds
+the space's trust-task key.</p>
+<h3>Which link language</h3>
+<p>A neighbourhood needs a link language to move its links. <code>share</code> takes one of the two
+the release knows:</p>
+<table>
+  <tr><th></th><th>How the links move</th><th>Our runs, two machines on one network</th></tr>
+  <tr><th><code>share --link holochain</code> (default)</th><td>Peer to peer over Holochain. The nodes find each other through AD4M's bootstrap and relay server (<code>bootstrap.ad4m.dev</code>).</td><td>share 6 s; join with the flow synced 16 to 60 s; each vote across in about 3 s</td></tr>
+  <tr><th><code>share --link server</code></th><td>Every node talks to one link server (<code>--server-url</code>, default <code>https://link.ad4m.dev</code>, run by Coasys). You can run your own: <code>link-server/</code> in the AD4M repo.</td><td>share 4 s; join with the flow synced 6 s; each vote across in about 3 s</td></tr>
+</table>
+<h3>More people on one node</h3>
+<p><code>node demo.mjs users add carol</code> adds another person to a node. Two users on one node share a
+space through a neighbourhood as well: after <code>share</code>, run
+<code>node demo.mjs join neighbourhood://… --as carol</code> on the same node, then
+<code>vote accept --as carol</code>.</p>
+
+<h2 id="offline">6. Offline</h2>
+<p>Downloading the executor and <code>npm ci</code> need the network. After that, local mode needs
+none: the space, the flow, the votes and the receipt all live on your node. How we checked: we
+could not cut a test machine off the network, so we pointed the node's HTTP(S) proxy and its
+Holochain bootstrap, relay and proxy at a dead local address. A fresh node, and the same node after
+a restart, ran every local step and <code>npm test</code>; <code>strace</code> saw no connection to
+the internet, only discovery on the local network. The node logs that it cannot fetch some of AD4M's Languages; the local steps
+do not use them.</p>
+<p>Offline, a space on one node holds two people: one user on the node and the node's own agent.
+Two users on one node can share a space only through a neighbourhood, and making a neighbourhood
+needs the network: offline, <code>share</code> says so and stops. Shared mode needs the network
+throughout.</p>
+
+<h2 id="limits">7. What it does not show</h2>
+<ul>
+  <li>AD4M making or checking <code>eddsa-jcs-2022</code> proofs. <code>demo.mjs</code> does that with ToIP's library and its own throwaway key.</li>
+  <li>A permission change. Accepting the <code>acl/grant</code> records it in the space; no AD4M permission changes.</li>
+  <li>The requester re-checking AD4M's signatures inside the receipt. AD4M's <code>verifyFlowReceipt</code> does that on the members' nodes; the requester checks the hash and that the receipt names its exact request.</li>
+  <li>A trust-task transport. Files stand in for HTTPS, DIDComm or TSP.</li>
+</ul>
+
+<h2 id="next">8. Next: read the source</h2>
+<p>Open <code>demo.mjs</code> and read it top to bottom. Section 1 is the social DNA
+(<code>Ad4mModel.fromJSONSchema</code>, <code>SHACLFlow</code>). Section 2 connects
+(<code>new Ad4mClient</code>, <code>agent.loginUser</code>, <code>perspective.byUUID</code>).
+Section 3 has one function per command: <code>agent.generate</code>, <code>runtime.setMultiUserEnabled</code>,
+<code>perspective.add</code>, <code>addFlow</code>, <code>neighbourhood.publishFromPerspective</code>,
+<code>neighbourhood.joinFromUrl</code>, <code>FlowInstance.start</code>, <code>proposeTransition</code>,
+<code>mintFlowReceipt</code>, <code>verifyFlowReceipt</code>.</p>
+<p>The SDK lives at <code>github.com/coasys/ad4m</code> (the <code>core/</code> folder), with docs
+at <code>docs.ad4m.dev</code>. Trust tasks: <code>github.com/trustoverip/dtgwg-trust-tasks-tf</code>.</p>
+
+</main>
+</body>
+</html>
