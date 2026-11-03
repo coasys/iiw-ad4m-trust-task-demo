@@ -1,5 +1,24 @@
 # A ToIP trust task, decided by an AD4M flow
 
+A web page that walks you through one ToIP trust task decided by a vote in an AD4M space, from the
+signed request to the signed answer.
+
+![The demo page after two people voted: the demo app on the left, its calls in the middle, the live AD4M node on the right](docs/screenshot.png)
+
+## Start
+
+```sh
+git clone https://github.com/coasys/iiw-ad4m-trust-task-demo && cd iiw-ad4m-trust-task-demo
+npm install
+npm start
+```
+
+Then open <http://127.0.0.1:8740> and follow the steps on the page.
+
+You need Linux (x64) or macOS (Apple silicon) and Node.js 22 or newer. The first run needs the network.
+
+## More detail
+
 A requester sends a signed ToIP trust task (`acl/grant/0.2`: "give Carol the role `member`") to an
 AD4M space. The space holds a flow: its members vote, and when the flow ends the demo app asks AD4M
 for a receipt of how they decided. The demo app answers the requester with a trust-task response
@@ -10,16 +29,7 @@ command per step (`demo.mjs` for the AD4M side, `requester.mjs` for the other pa
 the same functions as the commands. `guide.html` (open it from disk) explains the story with a
 diagram of the flow. `NOTE.md` says what this shows and what it does not.
 
-## Start
-
-You need Linux (x64) or macOS (Apple silicon), Node.js 22 or newer, and the network for the first
-run. In this folder:
-
-```sh
-npm install && npm start
-```
-
-Open <http://127.0.0.1:8740>. The page has two sides. On the left is this demo app, one step at a
+The page has two sides. On the left is this demo app, one step at a
 time. On the right is your AD4M node, live: the node, the people on it, the apps with access, the
 space and the flow. Between them, each button's `@coasys/ad4m` calls show up as they happen.
 
@@ -85,6 +95,21 @@ Some details:
   12100); Holochain uses the next two ports.
 - **Start over.** The button in step 2 stops the node and deletes `.node/`, `.demo/`, `.demo-test/`
   and `out/`.
+
+### The films about AD4M
+
+Seven short films explain AD4M. Film 3 goes with step 3 (the agent), film 7 with steps 6 to 8 (the
+flow, the votes and the receipt). The page links to them too.
+
+1. [The meta-ontology: an overview](https://coasys.org/ad4m#film-ad4m-1) (3:27)
+2. [The sovereign part](https://coasys.org/ad4m#film-ad4m-2) (3:28)
+3. [Your identity](https://coasys.org/ad4m#film-ad4m-3) (2:25)
+4. [The coherence part](https://coasys.org/ad4m#film-ad4m-4) (3:13)
+5. [Build a language](https://coasys.org/ad4m#film-ad4m-5) (3:48)
+6. [Build an app](https://coasys.org/ad4m#film-ad4m-6) (3:51)
+7. [Flows: how a group decides](https://coasys.org/ad4m#film-ad4m-7) (3:52)
+
+The films are on <https://coasys.org/ad4m>, which is not online yet. The links work once it is.
 
 ## The same with the command line
 
