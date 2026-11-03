@@ -309,6 +309,7 @@ async function stopNode() {
   Object.assign(node, { child:null, pid:null, phase:'stopped' });
   rmSync(pidPath, { force:true });
   forgetToken('the node stopped');
+  loggedIn.clear();
   return { stopped:true };
 }
 function logTail(lines = 80) {
@@ -348,20 +349,23 @@ async function state() {
   };
   if (node.phase === 'running' && existsSync(credentialPath()) && await portOpen(settings.port)) {
     try {
-      await withTimeout(asAdmin(async admin => {
-        const status = await admin.agent.status();
+      await asAdmin(async admin => {
+        const status = await withTimeout(admin.agent.status(), 5000, 'node');
         out.agent = { initialized:status.isInitialized, unlocked:status.isUnlocked, did:status.did ?? null };
-        out.multiUser = await admin.runtime.multiUserEnabled().catch(() => null);
-        const info = await admin.runtime.info().catch(() => null);
+        // The rest is for the node panel: each call on its own, so one slow answer blanks only its card.
+        const soon = promise => withTimeout(promise, 3000, 'node').catch(() => null);
+        const [multiUser, info, users, apps] = await Promise.all([admin.runtime.multiUserEnabled(), admin.runtime.info(),
+          admin.runtime.listUsers(), status.isUnlocked ? admin.agent.getApps() : null].map(soon));
+        out.multiUser = multiUser;
         if (info) out.info = { version:info.ad4mExecutorVersion, commit:info.ad4mExecutorCommit };
-        if (out.multiUser) {
+        if (multiUser && users) {
           const emails = Object.fromEntries(Object.entries(readPeople()).map(([name, p]) => [p.email, name]));
-          out.users = (await admin.runtime.listUsers().catch(() => [])).map(u => ({ name:emails[u.email] ?? null, did:u.did, lastSeen:u.lastSeen ?? null }));
+          out.users = users.map(u => ({ name:emails[u.email] ?? null, did:u.did, lastSeen:u.lastSeen ?? null }));
         }
         // An app's grant: its name and what it may do. Never its token.
-        if (status.isUnlocked) out.apps = (await admin.agent.getApps().catch(() => [])).map(a => ({ name:a.auth?.appName ?? '?', revoked:!!a.revoked,
+        if (apps) out.apps = apps.map(a => ({ name:a.auth?.appName ?? '?', revoked:!!a.revoked,
           everything:(a.auth?.capabilities ?? []).some(c => (c.can ?? []).includes('*') && (c.with?.pointers ?? []).includes('*')) }));
-      }), 5000, 'node');
+      });
     } catch (error) { out.agent = { error:error.message }; }
     if (appToken && out.agent?.unlocked) {
       const app = client(appToken);
@@ -408,6 +412,7 @@ const routes = {
   async 'POST /api/multiuser'({ on }) {
     return asAdmin(async admin => {
       await admin.runtime.setMultiUserEnabled(!!on);
+      if (!on) loggedIn.clear();
       return { multiUser:await admin.runtime.multiUserEnabled() };
     });
   },
@@ -444,7 +449,7 @@ const routes = {
     try {
       const me = await user.agent.me();
       loggedIn.add(name);
-      return { name, did:me.did, note:'token received; the server keeps it and never shows it' };
+      return { name, did:me.did, note:'token received and checked; never shown' };
     } finally { user.close(); }
   },
 

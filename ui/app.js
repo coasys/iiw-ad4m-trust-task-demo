@@ -221,7 +221,7 @@ function renderHere() {
     : 'No node runs on this computer yet. The person starting the demo starts it first (their step 2), then you add yourself here.', n.phase === 'running' ? 'ok' : 'wait');
   $('btn-here').disabled = n.phase !== 'running' || !S.agent?.unlocked;
   if (document.activeElement !== $('here-name') && who) $('here-name').value = who;
-  say('here-status', loggedIn ? '✓ You are <b>' + esc(who) + '</b> on this node, with your own DID <code>' + esc(short(S.people[who]?.did)) + '</code>. The page holds your token and never shows it.' : '', 'ok');
+  say('here-status', loggedIn ? '✓ You are <b>' + esc(who) + '</b> on this node, with your own DID <code>' + esc(short(S.people[who]?.did)) + '</code>. The page logged you in with a token and never shows it.' : '', 'ok');
   let html = '';
   if (!loggedIn) html = '';
   else if (!sp) html = '<span class="wait">No space yet. The person starting the demo makes it in their step 5: a local space with you as the owner, or a shared space you then join here.</span>';
@@ -231,7 +231,7 @@ function renderHere() {
   if ($('here-space').dataset.html !== html) {
     $('here-space').innerHTML = html; $('here-space').dataset.html = html;
     const join = $('btn-here-join');
-    if (join) join.onclick = () => act(join, 's1', 'I am joining the shared space as ' + who, 'POST', '/api/space/join', { url:sp.neighbourhood, as:who }).then(afterSpace);
+    if (join) join.onclick = () => act(join, 's1', 'I am joining the shared space as ' + who, 'POST', '/api/space/join', { url:S.space?.neighbourhood, as:who }).then(afterSpace);
   }
 }
 $('btn-here').onclick = async e => {
@@ -483,7 +483,7 @@ $('btn-req-receive').onclick = async e => {
 
 // ── 7. Runs and votes ───────────────────────────────────────────────────────────
 async function loadRuns(button) {
-  if (!S?.space || S.node.phase !== 'running') return;
+  if (!S?.space || S.node.phase !== 'running') { memo.runs = []; memo.members = null; memo.installed = null; return; }
   const res = button ? await act(button, 's7', 'I am listing the flow runs in your space', 'GET', '/api/runs') : await api('GET', '/api/runs');
   if (!res.ok) { $('runs-note').textContent = res.error; return; }
   noticeRemote(res.result);
@@ -503,7 +503,9 @@ function noticeRemote(result) {
     now.runs.add(run.runUri); now.states[run.runUri] = run.state;
     for (const v of run.votes) if (!v.name) now.votes.add(run.runUri + v.voter + v.toState);
   }
-  const before = memo.seen; memo.seen = now;
+  // A different space: start over, so its old members and votes do not show up as new.
+  const key = S.space?.neighbourhood ?? Object.values(S.space?.uuids ?? {})[0];
+  const before = memo.seenKey === key ? memo.seen : null; memo.seen = now; memo.seenKey = key;
   if (!before || !shared) return;
   for (const did of now.members) if (!before.members.has(did)) remote('a member joined the space: ' + short(did), 'seen with neighbourhood.otherAgents()');
   for (const run of now.runs) if (!before.runs.has(run) && !S.space.owner) remote('a trust task and its flow run arrived', 'seen with FlowInstance.findAll()');
@@ -517,7 +519,7 @@ function renderRuns(voters) {
   if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;   // do not redraw under the cursor
   if (!memo.runs.length) { box.innerHTML = '<p class="muted">No runs yet. A run starts when ' + (S.space?.owner ? 'this demo app takes in a trust task (step 6).' : 'the node that made the space takes in a trust task; it syncs here.') + '</p>'; return; }
   const open = new Set([...box.querySelectorAll('input[data-why]')].filter(i => i.value).map(i => i.dataset.why + '|' + i.value));
-  const who = role() === 'join-here' ? me() : null;
+  const joiningHere = role() === 'join-here', who = joiningHere ? me() : null;
   box.innerHTML = '';
   for (const run of memo.runs) {
     const el = document.createElement('div'); el.className = 'run';
@@ -530,7 +532,7 @@ function renderRuns(voters) {
       + (run.state === 'Received' ? voters.map(name => {
         const mine = votedFor(run, name);
         // Joining on this computer: you vote as yourself; the others vote in their own browser.
-        if (who && name !== who) return '<div class="vote-row"><span class="name">' + esc(name) + '</span><span class="muted small">' + (mine ? 'voted ' + esc(mine.toState) : 'votes in their own browser') + '</span></div>';
+        if (joiningHere && name !== who) return '<div class="vote-row"><span class="name">' + esc(name) + '</span><span class="muted small">' + (mine ? 'voted ' + esc(mine.toState) : 'votes in their own browser') + '</span></div>';
         return '<div class="vote-row"><span class="name">' + esc(name) + (name === who ? ' (you)' : '') + '</span>' + (mine ? '<span class="muted small">voted ' + esc(mine.toState) + '</span>'
           : '<input data-why="' + esc(run.taskId + name) + '" placeholder="why (optional)" size="18">'
           + '<button data-vote="accept" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Accept</button>'

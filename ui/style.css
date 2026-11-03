@@ -290,6 +290,7 @@ details.mapping { margin:12px 0; }
   .wire::before { display:none; }
   #wire-list { position:static; max-height:none; display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
   .links { display:none; }
+  .node-lane { position:static; max-height:none; }
 }
 @media (max-width:760px) {
   .stage { grid-template-columns:minmax(0, 1fr); }

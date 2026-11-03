@@ -28,7 +28,8 @@ The flow needs two voters, so step 1 asks who you are:
 - **I'm starting the demo.** You go through all eight steps below.
 - **I'm joining someone, on this computer.** The demo already runs here. You add yourself as a
   second person on its node (multi-user mode), then vote (step 7) and check the receipt (step 8).
-  The page remembers your choice in this browser, so two people can share one computer.
+  The page remembers your choice in this browser, so two people on one computer use two browsers
+  (or open `127.0.0.1:8740` in one and `localhost:8740` in the other).
 - **I'm joining someone, with my own node.** You do steps 1 to 4 on your computer, then join the
   space with the `neighbourhood://` address the other person sends you (step 5), vote and check
   the receipt. The trust task arrives at their node, so you skip step 6.
