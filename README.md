@@ -99,7 +99,7 @@ Some details:
 ### The films about AD4M
 
 Seven short films explain AD4M. The page has a button for a film and its docs page at the step it explains:
-film 1 at the top and in step 1, film 3 in step 3 (the agent), film 6 in step 4 (an app asks your node for
+film 1 at the top and in step 1, film 3 in step 3 (the agent, and the identity that comes next), film 6 in step 4 (an app asks your node for
 access), film 4 in step 5 (the shared space) and film 7 in step 6 (the flow, the votes and the receipt).
 
 1. [The meta-ontology: an overview](https://coasys.org/ad4m#film-ad4m-1) (4:09)
@@ -111,6 +111,23 @@ access), film 4 in step 5 (the shared space) and film 7 in step 6 (the flow, the
 7. [Flows: how a group decides](https://coasys.org/ad4m#film-ad4m-7) (3:52)
 
 All seven are on <https://coasys.org/ad4m>.
+
+### Identity: `did:key` today, `did:scid` next
+
+The agents in this demo use `did:key`, which is what AD4M v0.13.1 ships. Next comes
+`did:scid:coasys:1`: your DID is the fingerprint of the first event in a signed key log, so it stays
+the same while you rotate the master key and add or revoke devices. The master key comes from 12
+words. Film 3, [Your identity](https://coasys.org/ad4m#film-ad4m-3), shows this.
+
+It uses KERI's rules (a current key and a committed next key, so the current key alone cannot
+rotate) in the encoding the web already reads, as did:webvh does (JCS, SHA-256 multihash, multikeys,
+Data Integrity proofs). Unlike KERI it has no witnesses and no consensus: any host can serve a log,
+and anyone can check it without trusting that host. Unlike did:webvh, a device key joins by an offer
+and a claim, and only the 12 words hold the next master key.
+
+It is in review as coasys/ad4m [#1539](https://github.com/coasys/ad4m/pull/1539)–#1542 and is not
+in v0.13.1. The spec:
+[did-scid-coasys-1.md](https://github.com/coasys/ad4m/blob/identity/core/docs-src/identity/did-scid-coasys-1.md).
 
 ## The same with the command line
 
