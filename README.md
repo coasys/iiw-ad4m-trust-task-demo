@@ -19,14 +19,33 @@ run. In this folder:
 npm install && npm start
 ```
 
-Open <http://127.0.0.1:8740>. The page takes you through eight steps:
+Open <http://127.0.0.1:8740>. The page has two sides. On the left is this demo app, one step at a
+time. On the right is your AD4M node, live: the node, the people on it, the apps with access, the
+space and the flow. Between them, each button's `@coasys/ad4m` calls show up as they happen.
+
+The flow needs two voters, so step 1 asks who you are:
+
+- **I'm starting the demo.** You go through all eight steps below.
+- **I'm joining someone, on this computer.** The demo already runs here. You add yourself as a
+  second person on its node (multi-user mode), then vote (step 7) and check the receipt (step 8).
+  The page remembers your choice in this browser, so two people can share one computer.
+- **I'm joining someone, with my own node.** You do steps 1 to 4 on your computer, then join the
+  space with the `neighbourhood://` address the other person sends you (step 5), vote and check
+  the receipt. The trust task arrives at their node, so you skip step 6.
+
+Joining someone else's node over the network is not part of this demo: the executor listens on
+127.0.0.1 unless started with `--localhost false`, and then passwords and tokens would cross the
+network unencrypted.
+
+The eight steps:
 
 1. **Get the executor.** The page looks up the AD4M release for your computer and can download it
    into `bin/`. Or you give it the path of an executor you already have.
-2. **Start the node.** Start, stop, status and the node's log, with multi-user mode on or off.
-   The node keeps its data in `.node/`.
-3. **Agent and people.** Create the node's agent or unlock it with its passphrase. In multi-user
-   mode, add people (each gets a login and a DID) and log them in.
+2. **Start the node.** Start, stop and status. The node keeps its data in `.node/`; its log is at
+   the bottom of the node panel.
+3. **Agent and people.** Create the node's agent or unlock it with its passphrase. Add a second
+   person (each gets a login and a DID) and log them in. Adding a person turns multi-user mode on;
+   the People card on the right switches it and shows the mode the node reports.
 4. **Connect the page.** The page asks the node for a capability. The node writes a one-time
    6-digit code to its log; the page shows you that line, and you type the code in.
 5. **Make a space.** A local space, a shared one (a neighbourhood, over a link server or Holochain),
@@ -54,8 +73,10 @@ Some details:
   for the node's agent does not reach it, so for that space the node's agent votes through the
   admin credential, as the command line does.
 - **One person can only say no.** Accepting needs two voters. With multi-user mode off and a local
-  space you are alone, so only "reject" ends a run. Turn multi-user mode on, or share the space
-  with a second node.
+  space you are alone, so only "reject" ends a run. Add a second person on this node, or share the
+  space with a second node.
+- **Multi-user mode is kept by the node.** `--enable-multi-user false` at start does not turn it
+  off, so the page does not pass that flag. It reads the mode back from the node instead.
 - **Two nodes on one computer** (to try shared mode): copy this folder without `.node/`, `.demo/`
   and `node_modules/`, run `npm install && UI_PORT=8741 npm start` in the copy, and give its node
   port 12200 in step 2.
