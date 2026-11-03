@@ -1,9 +1,9 @@
 # A ToIP trust task, decided by an AD4M flow
 
 A requester sends a signed ToIP trust task (`acl/grant/0.2`: "give Carol the role `member`") to an
-AD4M space. The space holds a flow: its members vote, and when the flow ends AD4M makes a receipt
-of how they decided. The space answers the requester with a signed trust-task response that carries
-the receipt, and the requester checks it.
+AD4M space. The space holds a flow: its members vote, and when the flow ends the demo app asks AD4M
+for a receipt of how they decided. The demo app answers the requester with a trust-task response
+that carries the receipt and is signed with the app's own key, and the requester checks it.
 
 You can run it two ways: a web page that guides you through each step (`npm start`), or one
 command per step (`demo.mjs` for the AD4M side, `requester.mjs` for the other party). The page calls
@@ -46,7 +46,7 @@ The eight steps:
    the bottom of the node panel.
 3. **Agent and people.** Create the node's agent or unlock it with its passphrase. Add a second
    person (each gets a login and a DID) and log them in. Adding a person turns multi-user mode on;
-   the People card on the right switches it and shows the mode the node reports.
+   the People card in the node panel switches it and shows the mode the node reports.
 4. **Connect the page.** The page asks the node for a capability. The node writes a one-time
    6-digit code to its log; the page shows you that line, and you type the code in.
 5. **Make a space.** A local space, a shared one (a neighbourhood, over a link server or Holochain),
