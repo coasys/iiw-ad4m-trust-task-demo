@@ -76,8 +76,9 @@ function wire(title, res) {
   if (!rows.length && res.ok) rows.push({ kind:'ret', text:'no AD4M call: this ran in the app only' });
   if (!res.ok && !(res.calls ?? []).some(c => c.error)) rows.push({ kind:'err', text:res.error });
   wireGroup(title, rows, false);
+  if (/^Requester:/.test(title)) $('wire-list').firstElementChild.classList.add('req');
 }
-const remote = (what, text) => wireGroup('From another node', [{ kind:'remote', text:what }, ...(text ? [{ kind:'ret', text }] : [])], true);
+const remote = (what, text) => wireGroup('⇠ From another node: ' + what, text ? [{ kind:'remote', text }] : [], true);
 
 // ── Who you are, and which steps that needs ─────────────────────────────────────
 const PATHS = { host:[1, 2, 3, 4, 5, 6, 7, 8], 'join-here':[1, 7, 8], 'join-own':[1, 2, 3, 4, 5, 7, 8] };
@@ -173,7 +174,7 @@ function renderRole() {
   if (r) {
     const text = { host:'You are <b>starting the demo</b>: you run the node, make the space and receive the trust task. Steps 1 to 8.',
       'join-here':'You are <b>joining on this computer</b>: you become a second person on the node that already runs here. Then you vote (step 7) and check the receipt (step 8).',
-      'join-own':'You are <b>joining with your own node</b>: steps 1 to 4 as usual, then you join the space by the address the other person sends you (step 5), vote (7) and check the receipt (8). Step 6 happens on their node.' }[r];
+      'join-own':'You are <b>joining with your own node</b>: steps 1 to 4 as usual, then you join the space by the address the other person sends you (step 5), vote (7) and check the receipt (8). Step 6 happens on their computer: their demo app checks the trust task, then stores it in the space on their node, and the links sync to yours.' }[r];
     if ($('role-line').dataset.r !== r) { $('role-line').innerHTML = text + ' <a href="#" id="role-change">Change</a>'; $('role-line').dataset.r = r; $('role-change').onclick = e => { e.preventDefault(); setRole(null); }; }
   }
   $('exe-part').classList.toggle('hidden', !r || r === 'join-here');
@@ -306,7 +307,7 @@ function renderAgent() {
   const users = Object.entries(S.people).filter(([, p]) => p.login === 'user');
   $('users-hint').textContent = 'Two people on one node is the simplest way to get two voters. The second person can also add themselves: on this computer they choose "I\'m joining someone", then "On this computer".';
   const html = users.length ? '<ul class="plist">' + users.map(([name, p]) => '<li><span class="nm">' + esc(name) + '</span> <code>' + esc(short(p.did)) + '</code> '
-    + '<span class="tag">' + (S.loggedIn.includes(name) ? '<span class="ok-text">logged in ✓</span>' : '<button class="secondary small" data-login="' + esc(name) + '">Log in</button>') + '</span></li>').join('') + '</ul>'
+    + '<span class="tag">' + (S.loggedIn.includes(name) ? '<span class="ok-text">logged in ✓</span>' : S.multiUser === false ? '<span class="muted">turn multi-user on to log in</span>' : '<button class="secondary small" data-login="' + esc(name) + '">Log in</button>') + '</span></li>').join('') + '</ul>'
     : '<p class="muted small">Nobody yet besides the node\'s agent.</p>';
   if ($('users-list').dataset.html !== html) {
     $('users-list').innerHTML = html; $('users-list').dataset.html = html;
@@ -328,7 +329,7 @@ function renderHandshake() {
   });
   $('hs-enter').classList.toggle('hidden', phase !== 'enter' || !codeSeen);
   if (phase === 'ok') { $('hs-logline').classList.add('hidden');
-    say('hs-status', '✓ Connected. This page acts as your agent <code>' + esc(S.app.did) + '</code> with its own token (see "Apps with access" on the right). One exception: a space owned by a person added in step 3 is that person\'s, and the node\'s agent reaches it only through the admin credential, as on the command line.', 'ok'); }
+    say('hs-status', '✓ Connected. This page acts as your agent <code>' + esc(S.app.did) + '</code> with its own token (see "Apps with access" in the node panel). One exception: a space owned by a person added in step 3 is that person\'s, and the node\'s agent reaches it only through the admin credential, as on the command line.', 'ok'); }
   else if (S.app.refused) say('hs-status', esc(S.app.refused) + '. Ask for access again.', 'no');
   else if (phase === 'ask') say('hs-status', 'Not connected yet.', 'muted');
   if (phase === 'enter' && !logLineTimer) watchLogLine();
@@ -343,7 +344,7 @@ function watchLogLine() {
       $('hs-logline').innerHTML = '<p class="small">The node wrote this line to its log (also at the bottom of the node panel). The number after <code>rand=</code> is your code:</p><pre>' + line + '</pre>';
       $('hs-logline').classList.remove('hidden');
       $('nodelog').open = true;
-      say('hs-status', 'Type the 6 digits below. The code works once; five wrong tries cancel the request.', 'wait');
+      say('hs-status', 'Type the 6 digits into the field. The code works once; five wrong tries cancel the request.', 'wait');
       render();
     } else if (++tries > 20) {
       clearInterval(logLineTimer); logLineTimer = null;
@@ -389,8 +390,8 @@ function renderSpace() {
   const names = Object.keys(sp.uuids);
   let html = '<span class="ok">✓ ' + (sp.neighbourhood ? 'Shared space' : 'Local space') + '</span>, AD4M perspective <code>' + esc(Object.values(sp.uuids)[0]) + '</code>. '
     + 'In it on this node: ' + names.map(n => '<b>' + esc(n) + '</b>').join(', ') + '.';
-  if (sp.owner) html += ' Owner: <b>' + esc(sp.owner) + '</b>. Trust tasks go to the space\'s DID <code>' + esc(short(sp.spaceDid)) + '</code>.';
-  else html += ' Joined here: the node that made it receives the trust tasks.';
+  if (sp.owner) html += ' Owner: <b>' + esc(sp.owner) + '</b>. Trust tasks name the space\'s trust-task DID <code>' + esc(short(sp.spaceDid)) + '</code> as recipient: a key this demo app holds, not the node.';
+  else html += ' Joined here: the demo app of the person who made it takes in the trust tasks and stores them on their node.';
   if (sp.neighbourhood && sp.owner) html += '<div class="sendbox"><b>Send this address to the second person.</b> They open this demo on their computer, choose "I\'m joining someone", then "With my own node", and paste it in their step 5.'
     + '<code id="nh-url">' + esc(sp.neighbourhood) + '</code><button class="secondary small" id="btn-copy">Copy</button>'
     + ' <span class="small muted">Someone on this computer chooses "On this computer" instead and joins it there.</span></div>';
@@ -517,7 +518,7 @@ const votedFor = (run, name) => run.votes.find(v => v.name === name);
 function renderRuns(voters) {
   const box = $('runs');
   if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;   // do not redraw under the cursor
-  if (!memo.runs.length) { box.innerHTML = '<p class="muted">No runs yet. A run starts when ' + (S.space?.owner ? 'this demo app takes in a trust task (step 6).' : 'the node that made the space takes in a trust task; it syncs here.') + '</p>'; return; }
+  if (!memo.runs.length) { box.innerHTML = '<p class="muted">No runs yet. A run starts when ' + (S.space?.owner ? 'this demo app takes in a trust task (step 6).' : 'the other person\'s demo app takes in a trust task; it syncs here.') + '</p>'; return; }
   const open = new Set([...box.querySelectorAll('input[data-why]')].filter(i => i.value).map(i => i.dataset.why + '|' + i.value));
   const joiningHere = role() === 'join-here', who = joiningHere ? me() : null;
   box.innerHTML = '';
@@ -537,7 +538,7 @@ function renderRuns(voters) {
           : '<input data-why="' + esc(run.taskId + name) + '" placeholder="why (optional)" size="18">'
           + '<button data-vote="accept" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Accept</button>'
           + '<button class="danger" data-vote="reject" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Reject</button>') + '</div>';
-      }).join('') : '<p class="small muted">This run has ended. Step 8 makes its receipt and answer.</p>');
+      }).join('') : '<p class="small muted">This run has ended. ' + (S.space?.owner ? 'Step 8 makes its receipt and answer.' : 'The other person\'s demo app makes the receipt and the answer; check the receipt in step 8.') + '</p>');
     el.querySelector('.diagram').append(diagram(run.state, end));
     box.append(el);
   }
@@ -559,6 +560,10 @@ function renderAnswerTasks() {
   if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; if (current) sel.value = current; }
   const joined = S?.space && !S.space.owner;
   $('btn-respond').classList.toggle('hidden', !!joined);
+  $('s8-now').classList.toggle('hidden', !!joined);
+  const intro = joined ? 'When the run has ended, the other person\'s demo app asks their AD4M node for a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. It signs the answer to the requester with its own key. Here, your node checks that receipt: its address is the SHA-256 of its content, and the votes in it are signed links.'
+    : 'When a run has ended, this demo app asks AD4M to make a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. This demo app wraps it into a trust-task answer signed with its own key, and the requester checks the answer against the request it sent.';
+  if ($('s8-intro').dataset.j !== String(!!joined)) { $('s8-intro').innerHTML = intro; $('s8-intro').dataset.j = String(!!joined); }
   document.querySelector('#s8 .reqcard').classList.toggle('hidden', !!joined);
 }
 const taskNow = () => $('answer-task').value;
@@ -603,9 +608,9 @@ $('btn-verify').onclick = async e => {
   if (!res.ok) { $('req-side').innerHTML = '<p class="no-text">' + esc(res.error) + '</p>'; return; }
   const r = res.result;
   memo.verified[taskNow()] = r.ok;
-  $('req-side').innerHTML = '<p>' + (r.ok ? '<span class="ok-text">✓ The answer checks out.</span>' : '<span class="no-text">✗ The answer failed a check.</span>') + '</p>'
+  $('req-side').innerHTML = '<p>' + (r.ok ? '<span class="ok-text">✓ The answer\'s signature, the receipt\'s hash and the link to my request check out.</span>' : '<span class="no-text">✗ The answer failed a check.</span>') + '</p>'
     + '<ul class="checks">' + r.checks.map(c => '<li class="' + (c.ok ? '' : 'no') + '">' + esc(c.name) + '</li>').join('') + '</ul>'
-    + '<p class="small muted">' + esc(r.limitation) + '.</p>'
+    + '<p>' + esc(r.limitation) + '.</p>'
     + '<details><summary>The request it sent (JSON)</summary><pre class="json">' + esc(JSON.stringify(r.request, null, 2)) + '</pre></details>';
   spaceSide(r.response, null);
   linksBetween(r.request, r.response);
@@ -650,7 +655,7 @@ function renderPanel() {
   $('node-sub').textContent = running ? 'What the executor holds right now. It answers at ' + n.url.replace('http://', '') + '.' : 'What the executor holds right now.';
   // Which setup this is: one node with two people, or a space shared with another node.
   const users = S.users ?? [];
-  const mode = sp?.neighbourhood ? 'Shared with another node' : (sp && Object.keys(sp.uuids).length > 1) || users.length ? 'One node, two people' : null;
+  const mode = sp?.neighbourhood ? ((memo.members ?? []).some(m => !m.here) ? 'Shared with another node' : 'Shared space, nobody else in it yet') : (sp && Object.keys(sp.uuids).length > 1) || users.length ? 'One node, two people' : null;
   $('mode-badge').classList.toggle('hidden', !mode || !running); $('mode-badge').textContent = mode ?? '';
   const agentName = Object.entries(S.people).find(([, p]) => p.login === 'agent')?.[0];
   // Node
@@ -686,11 +691,11 @@ function renderPanel() {
   const accepts = run ? new Set(run.votes.filter(v => v.toState === 'Accepted').map(v => v.voter)).size : 0;
   card('flow', 'mint', !sp ? '' : memo.installed ? (run ? 'run: ' + esc(run.state) : 'no run yet') : 'not installed',
     !sp ? '<p class="muted">Needs a space.</p>'
-    : '<p>Rules: ' + (memo.installed ? 'the stored request <code>IiwTrustTaskRequest</code> and the vote <code>TrustTaskDecision</code> <span class="ok-text">✓</span>' : '<span class="muted">not in the space yet (step 6)</span>') + '</p>'
+    : '<p>Rules: ' + (memo.installed ? 'the stored request <code>IiwTrustTaskRequest</code> and the flow <code>TrustTaskDecision</code> <span class="ok-text">✓</span>' : '<span class="muted">not in the space yet (step 6)</span>') + '</p>'
       + (run ? '<p><b>Give Carol the role ' + esc(run.role) + '</b></p>'
         + '<div class="states"><span class="' + (run.state === 'Received' ? 'cur' : '') + '">Received</span><i>→</i><span class="' + (run.state === 'Accepted' ? 'cur' : '') + '">Accepted</span><span class="' + (run.state === 'Rejected' ? 'cur rej' : '') + '">Rejected</span></div>'
         + '<div class="votebar"><i style="width:' + Math.min(100, accepts * 50) + '%"></i></div><p class="small muted">' + accepts + ' of 2 votes to accept' + (run.votes.some(v => v.toState === 'Rejected') ? ' · a reject vote' : '') + '</p>'
-        + (run.responded ? '<p class="ok-text">✓ receipt made, answer signed</p>' : '')
+        + (run.responded ? '<p class="ok-text">✓ flow receipt made</p>' : '')
         + (run.state !== 'Received' ? '<p class="small muted">The decision is recorded in the space. No permission changes anywhere.</p>' : '') : ''),
     'getFlow() · flowStates() · run.proposals()');
 }

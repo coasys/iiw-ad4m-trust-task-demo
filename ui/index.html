@@ -93,7 +93,7 @@
     <button id="btn-reset" class="danger">Start over…</button>
   </div>
   <div id="node-status" class="status"></div>
-  <p class="small muted">Watch the AD4M logo on the right: grey while the node is stopped, blue once it answers. Its log is at the bottom of that panel.</p>
+  <p class="small muted">Watch the AD4M logo in the node panel: grey while the node is stopped, blue once it answers. Its log is at the bottom of that panel.</p>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s2"></div></details>
 </section>
 
@@ -104,7 +104,7 @@
   <div id="agent-box"></div>
   <div id="users-box" class="sub">
     <h3>A second person on this node</h3>
-    <p>With multi-user mode on, one node holds several people, each with their own DID and keys and a login. Adding a person turns multi-user mode on (see the People card on the right). The page makes a random throwaway password for each and keeps it in <code>.demo/people.json</code>.</p>
+    <p>With multi-user mode on, one node holds several people, each with their own DID and keys and a login. Adding a person turns multi-user mode on (see the People card in the node panel). The page makes a random throwaway password for each and keeps it in <code>.demo/people.json</code>.</p>
     <p class="small muted" id="users-hint"></p>
     <div class="row">
       <input id="user-name" placeholder="dana" size="14" aria-label="Name of the new person">
@@ -118,8 +118,8 @@
 <!-- 4 -->
 <section class="step" id="s4" data-n="4">
   <h2><span class="n">4</span> Connect this page to your agent</h2>
-  <p>An app never gets your keys or the admin credential. It asks the node for a <b>capability</b>: the right to act as your agent. The node answers with a one-time 6-digit code that only you can see. Here the node writes the code to its log. You read it there and type it into the app. Only then does the app get a token. That way a web page can ask, but only the person at the node can say yes.</p>
-  <p class="small muted">In the ADAM launcher the code shows up in a window. A bare executor started by this page approves the request on its own and prints the code to its log (that is what <code>AD4M_LOG_SECRETS=1</code> does).</p>
+  <p>An ordinary app never gets your keys or the admin credential. It asks the node for a <b>capability</b>: the right to act as your agent. The node shows the person at the node a one-time 6-digit code, and they type it into the app. Only then does the app get a token. That way a web page can ask, but only the person at the node can say yes.</p>
+  <p class="small muted">This demo is a special case. Its server started your node, so it holds the admin credential. A bare executor approves the request by itself and writes the code to its log (that is what <code>AD4M_LOG_SECRETS=1</code> does); the page reads the log and shows you the line. The calls are the same ones any app makes. In the ADAM launcher the code shows up in a window instead.</p>
   <ol class="hs" id="hs-steps">
     <li data-k="ask">The app asks</li>
     <li data-k="code">The node writes a code to its log</li>
@@ -205,7 +205,7 @@
       <div id="receive-status" class="status"></div>
     </li>
     <li id="arrive-joined" class="hidden">
-      <p>This space was joined here. Trust tasks arrive at the node that made the space; the runs show up here in step 7 once their links have synced.</p>
+      <p>This space was joined here. Trust tasks go to the demo app of the person who made the space: it checks them, then stores them in the space on their node. The runs sync here and show up in step 7.</p>
     </li>
   </ol>
   <details class="mapping"><summary>The flow, and what each part of the trust task becomes in AD4M</summary>
@@ -227,7 +227,7 @@
 <!-- 8 -->
 <section class="step" id="s8" data-n="8">
   <h2><span class="n">8</span> The receipt, the answer, and the requester's check</h2>
-  <p>When a run ends, AD4M makes a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. This demo app wraps it into a signed trust-task answer, and the requester checks the answer against the request it sent.</p>
+  <p id="s8-intro">When a run has ended, this demo app asks AD4M to make a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. This demo app wraps it into a trust-task answer signed with its own key, and the requester checks the answer against the request it sent.</p>
   <div class="row"><label>Task <select id="answer-task"></select></label></div>
   <div class="panel">
     <p class="who">This demo app asks the node</p>
@@ -236,7 +236,7 @@
       <button id="btn-check-receipt" class="secondary">Check the receipt on this node</button>
     </div>
     <div id="space-side"></div>
-    <p class="nownext"><b>Now</b> this demo app signs the answer with the space's trust-task key, a key of its own. The node can sign a plain string with the agent's key but makes no Data Integrity proof. <b>Could later</b> the node signs the answer itself. Not built.</p>
+    <p class="nownext" id="s8-now"><b>Now</b> this demo app signs the answer with the space's trust-task key, a key of its own. The node can sign a plain string with the agent's key but makes no Data Integrity proof. <b>Could later</b> the node signs the answer itself. Not built.</p>
   </div>
   <div class="reqcard">
     <p class="who req">Requester · outside your group</p>
@@ -262,7 +262,7 @@
     <span><i class="l-ret">←</i> the node answered</span>
     <span><i class="l-remote">⇠</i> came from another node, nobody clicked here</span>
   </div>
-  <div id="wire-list"><p class="wire-empty">Press a button on the left. Each <code>@coasys/ad4m</code> call it makes shows up here.</p></div>
+  <div id="wire-list"><p class="wire-empty">Press a button in the demo app. Each <code>@coasys/ad4m</code> call it makes shows up here.</p></div>
 </section>
 
 <!-- ── Right: the AD4M node, live ──────────────────────────────────────────── -->
@@ -284,15 +284,15 @@
     <div class="card" id="card-flow"><div class="card-head"><b>Flow</b><a class="learn" href="https://docs.ad4m.dev/flows" target="_blank" rel="noopener">learn</a><span class="sum"></span></div><div class="body"></div></div>
   </div>
   <details class="nodelog" id="nodelog">
-    <summary>The node's log (last lines, secrets hidden)</summary>
+    <summary>The node's log (passwords and tokens hidden; the access code is shown for this demo)</summary>
     <pre id="log" class="log"></pre>
   </details>
-  <p class="idea">Next step (not built yet): a trust-task language inside the node, so no separate app is needed.</p>
+  <p class="idea">Next step (not built yet): a trust-task language inside the node, so the node itself can receive and check trust tasks.</p>
 </aside>
 </div>
 
 <template id="diagram-tpl">
-<svg viewBox="0 0 760 250" role="img" aria-label="Flow: Received goes to Accepted with 2 votes, or to Rejected with 1 vote; each end mints a flow receipt that goes into the answer">
+<svg viewBox="0 0 760 250" role="img" aria-label="Flow: Received goes to Accepted with 2 votes, or to Rejected with 1 vote; at the end this demo app asks AD4M for a flow receipt and puts it into the answer">
   <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8d90b3"/></marker></defs>
   <g data-state="Received"><rect class="box start" x="20" y="95" width="170" height="64" rx="12"/>
   <text x="105" y="122" text-anchor="middle">Received</text>

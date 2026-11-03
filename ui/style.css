@@ -207,6 +207,8 @@ details.mapping { margin:12px 0; }
 .wgroup .count { flex:none; color:var(--text3); }
 .wgroup.old:not(.unfold) .count::after { content:" ▸"; }
 .wgroup .what { display:flex; gap:8px; justify-content:space-between; align-items:baseline; font-size:11.5px; color:var(--orange); margin:0 0 4px; line-height:1.35; }
+.wgroup.req { border-color:rgba(225,183,255,0.5); }
+.wgroup.req .what { color:var(--purple); }
 .wgroup.remote { border-style:dashed; border-color:rgba(136,243,180,0.5); }
 .wgroup.remote .what { color:var(--mint); }
 .wrow { position:relative; font:11.5px/1.4 var(--mono); padding:4px 0 4px 16px; color:var(--text); cursor:pointer; overflow:hidden; opacity:0; animation:fadein .3s var(--ease) forwards; }
