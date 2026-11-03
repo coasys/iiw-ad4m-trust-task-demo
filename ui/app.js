@@ -311,7 +311,10 @@ $('btn-stop').onclick = e => act(e.target, 's2', 'I am stopping your node', 'POS
 $('btn-reset').onclick = e => {
   if (!confirm('Start over? This stops the node and deletes .node/ (the node\'s data and its agent), .demo/ and .demo-test/ (people, the space, keys) and out/.')) return;
   memo.runs = []; memo.verified = {}; memo.receipts = {}; memo.open = {}; memo.installed = null; memo.members = null; memo.seen = null;
-  localStorage.removeItem('iiw-me');
+  // This browser's part of the demo goes too: who you are, your part and your step.
+  for (const key of ['iiw-me', 'iiw-role', 'iiw-step']) localStorage.removeItem(key);
+  setRole(null);
+  localStorage.removeItem('iiw-step');
   act(e.target, 's2', 'I am stopping the node and deleting its data', 'POST', '/api/node/reset', {});
 };
 
