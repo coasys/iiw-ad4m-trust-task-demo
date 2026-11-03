@@ -3,7 +3,7 @@
 A web page that walks you through one ToIP trust task decided by a vote in an AD4M space, from the
 signed request to the signed answer.
 
-![The demo page after two people voted: the demo app on the left, its calls in the middle, the live AD4M node on the right](docs/screenshot.png)
+![The Decide step after two requests: one rejected, one accepted with its receipt checked. The demo app on the left, its calls in the middle, the live AD4M node on the right](docs/screenshot.png)
 
 ## Start
 
@@ -29,44 +29,51 @@ command per step (`demo.mjs` for the AD4M side, `requester.mjs` for the other pa
 the same functions as the commands. `guide.html` (open it from disk) explains the story with a
 diagram of the flow. `NOTE.md` says what this shows and what it does not.
 
-The page has two sides. On the left is this demo app, one step at a
-time. On the right is your AD4M node, live: the node, the people on it, the apps with access, the
-space and the flow. Between them, each button's `@coasys/ad4m` calls show up as they happen.
+The page has two sides. On the left is this demo app. On the right is your AD4M node, live: the
+node, the people on it, the apps with access, the space and the flow. Between them, each button's
+`@coasys/ad4m` calls show up as they happen.
+
+The left side has three parts, one pill each at the top: **Setup**, **Space** and **Decide**. Each
+step has one line and one button; the longer explanation sits under "What happens here". Once
+Setup is done it folds into one bar, and a click on the bar opens it again.
 
 The flow needs two voters, so step 1 asks who you are:
 
-- **I'm starting the demo.** You go through all eight steps below.
+- **I'm starting the demo.** You do all of Setup, make the space and take in the requests.
 - **I'm joining someone, on this computer.** The demo already runs here. You add yourself as a
-  second person on its node (multi-user mode), then vote (step 7) and check the receipt (step 8).
-  The page remembers your choice in this browser, so two people on one computer use two browsers
-  (or open `127.0.0.1:8740` in one and `localhost:8740` in the other).
-- **I'm joining someone, with my own node.** You do steps 1 to 4 on your computer, then join the
-  space with the `neighbourhood://` address the other person sends you (step 5), vote and check
-  the receipt. The trust task arrives at their node, so you skip step 6.
+  second person on its node (multi-user mode), get into the space, then vote and check the
+  receipt. The page remembers your choice in this browser, so two people on one computer use two
+  browsers (or open `127.0.0.1:8740` in one and `localhost:8740` in the other).
+- **I'm joining someone, with my own node.** You do Setup on your computer, then join the space
+  with the `neighbourhood://` address the other person sends you, vote and check the receipt. New
+  requests arrive at their demo app, so only they see the "+ New request" button.
 
 Joining someone else's node over the network is not part of this demo: the executor listens on
 127.0.0.1 unless started with `--localhost false`, and then passwords and tokens would cross the
 network unencrypted.
 
-The eight steps:
+Setup:
 
 1. **Get the executor.** The page looks up the AD4M release for your computer and can download it
    into `bin/`. Or you give it the path of an executor you already have.
 2. **Start the node.** Start, stop and status. The node keeps its data in `.node/`; its log is at
    the bottom of the node panel.
-3. **Agent and people.** Create the node's agent or unlock it with its passphrase. Add a second
-   person (each gets a login and a DID) and log them in. Adding a person turns multi-user mode on;
+3. **Your agent, and a second person.** Create the node's agent or unlock it with its passphrase.
+   Add a second person (each gets a login and a DID). Adding a person turns multi-user mode on;
    the People card in the node panel switches it and shows the mode the node reports.
 4. **Connect the page.** The page asks the node for a capability. The node writes a one-time
    6-digit code to its log; the page shows you that line, and you type the code in.
-5. **Make a space.** A local space, a shared one (a neighbourhood, over a link server or Holochain),
-   or join someone else's by its URL.
-6. **The trust task and the flow.** Install the flow in the space, let the requester sign a trust
-   task. The space's app checks it with ToIP's code and writes it into the space, and AD4M
-   starts a run of the flow.
-7. **Vote.** Each person votes with their own key; the diagram shows the state.
-8. **The receipt and the answer.** AD4M's flow receipt and the signed answer on one side, the
-   requester's checks on the other.
+
+**Space.** A local space, a shared one (a neighbourhood, over a link server or Holochain), or join
+someone else's by its URL.
+
+**Decide.** "+ New request" does it in one click: the requester signs a trust task, this demo app
+checks it with ToIP's code and writes it into the space, and AD4M starts a run of the flow. The
+first time, it installs the flow in the space too. "Sign one, then change it" shows a request that
+fails the check. Each run is a card: the request in words, its state, who voted, the Accept and
+Reject buttons, and once the run has ended, AD4M's flow receipt and the requester's check of the
+signed answer. People who joined see the same cards and vote on them; new requests come from the
+starter's window.
 
 Each button shows the `@coasys/ad4m` calls it made and what came back. The page's server listens
 on 127.0.0.1 only. It never sends passwords, passphrases, tokens or the node's admin credential to
@@ -91,16 +98,22 @@ Some details:
 - **Two nodes on one computer** (to try shared mode): copy this folder without `.node/`, `.demo/`
   and `node_modules/`, run `npm install && UI_PORT=8741 npm start` in the copy, and give its node
   port 12200 in step 2.
+- **A slow link server.** The page asks for the runs every 4 s. The list of the space's members
+  comes from the link language, which can be slow; the page's server keeps the last list and asks
+  for a new one at most once a minute (and after a join), so a slow or dead link server never holds
+  up the runs.
 - **Ports.** `UI_PORT` (default 8740) is the page. The node's API port is set in step 2 (default
   12100); Holochain uses the next two ports.
 - **Start over.** The button in step 2 stops the node and deletes `.node/`, `.demo/`, `.demo-test/`
-  and `out/`.
+  and `out/`. It also forgets your part and step in this browser, so the page starts again at
+  "Who are you in this demo?".
 
 ### The films about AD4M
 
-Seven short films explain AD4M. The page has a button for a film and its docs page at the step it explains:
-film 1 at the top and in step 1, film 3 in step 3 (the agent, and the identity that comes next), film 6 in step 4 (an app asks your node for
-access), film 4 in step 5 (the shared space) and film 7 in step 6 (the flow, the votes and the receipt).
+Seven short films explain AD4M. The page has a film button in the header of the step it explains,
+and the docs page under "What happens here": film 1 at the top and in step 1, film 3 in step 3 (the
+agent, and the identity that comes next), film 6 in step 4 (an app asks your node for access),
+film 4 at Space (the shared space) and film 7 at Decide (the flow, the votes and the receipt).
 
 1. [The meta-ontology: an overview](https://coasys.org/ad4m#film-ad4m-1) (4:09)
 2. [The sovereign part](https://coasys.org/ad4m#film-ad4m-2) (3:28)

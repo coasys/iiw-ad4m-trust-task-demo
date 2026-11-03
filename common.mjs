@@ -84,6 +84,33 @@ export function checkReceiptHash(flowReceipt) {
   } catch { return false; }
 }
 
+// A slow answer kept in the background: get() never waits. It returns the last answer (or the
+// fallback) and asks again at most once every `ttl` ms. A new key (another space) starts empty.
+// The page polls the runs every 4 s; the space's members come from the link language, which can
+// hang on a slow or dead link server, so the runs must not wait for them.
+export function backgroundCache(load, { ttl = 60000, timeout = 30000, now = Date.now } = {}) {
+  let key, value, at = -Infinity, pending = null;
+  const refresh = () => {
+    if (pending) return pending;
+    const forKey = key;
+    const timer = new Promise((_, fail) => setTimeout(() => fail(new Error('no answer')), timeout).unref?.());
+    pending = Promise.race([Promise.resolve().then(() => load(forKey)), timer])
+      .then(answer => { if (forKey === key) value = answer; }, () => {})
+      .finally(() => { if (forKey === key) at = now(); pending = null; });
+    return pending;
+  };
+  return {
+    get(forKey, fallback) {
+      if (forKey !== key) { key = forKey; value = undefined; at = -Infinity; }
+      if (now() - at >= ttl) refresh();
+      return value ?? fallback;
+    },
+    // Ask again soon: on the next get(), or now with refresh().
+    stale() { at = -Infinity; },
+    refresh
+  };
+}
+
 export function args(argv) {
   const positional = [], options = {};
   for (let i = 0; i < argv.length; i++) {
