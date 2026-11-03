@@ -35,8 +35,10 @@ const tokenPath = resolve(STATE, 'app-token');
 // v0.13.1, or its last staging build while the release is not out. AD4M_RELEASE_TAGS overrides.
 const RELEASE_TAGS = (process.env.AD4M_RELEASE_TAGS ?? 'v0.13.1,v0.13.1-staging.6').split(',').map(t => t.trim()).filter(Boolean);
 
-// ── Settings: which executor, which port, multi-user on or off ─────────────────
-const defaults = { executor:process.env.AD4M_EXECUTOR ?? '', port:Number(process.env.AD4M_PORT ?? 12100), multiUser:false };
+// ── Settings: which executor, which port, and who you are in the demo ──────────
+// role: 'host' (starts the demo), 'join-here' (a second person on this computer's node),
+// 'join-own' (a second person with their own node), or null (not chosen yet).
+const defaults = { executor:process.env.AD4M_EXECUTOR ?? '', port:Number(process.env.AD4M_PORT ?? 12100), role:null };
 let settings = { ...defaults, ...(existsSync(SETTINGS_PATH) ? readJson(SETTINGS_PATH) : {}) };
 const saveSettings = () => saveJson(SETTINGS_PATH, settings);
 const nodeUrl = () => 'http://127.0.0.1:' + settings.port;
@@ -249,13 +251,13 @@ function runScript(args, extraEnv) {
     child.on('close', code => code === 0 ? done(out) : fail(new Error(out.trim().split('\n').slice(-3).join(' ') || 'exit ' + code)));
   });
 }
-async function startNode({ multiUser, port }) {
+async function startNode({ port }) {
   if (node.phase === 'running' || node.phase === 'starting') throw new Error('The node is already ' + node.phase);
   const executor = executorPath();
   const check = await executorVersion(executor);
   if (!check.ok) throw new Error('Choose the executor first (step 1): ' + check.error);
   if (port) settings.port = Number(port);
-  settings.multiUser = !!multiUser; saveSettings(); applyEnv();
+  saveSettings(); applyEnv();
   if (await portOpen(settings.port)) throw new Error('Port ' + settings.port + ' is in use (another node?). Stop it, or pick another port');
   const env = { AD4M_EXECUTOR:executor, AD4M_PORT:String(settings.port), NODE_DIR };
   node.error = null;
@@ -265,7 +267,9 @@ async function startNode({ multiUser, port }) {
     node.phase = 'creating';
     writeFileSync(LOG_PATH, '$ ./start-node.sh init\n' + await runScript(['init'], env).catch(error => { node.phase = 'stopped'; throw error; }));
   }
-  const args = ['run', '--enable-multi-user', String(settings.multiUser)];
+  // No --enable-multi-user: `false` would not turn it off (the node keeps the mode in its database).
+  // The People card switches it with runtime.setMultiUserEnabled and reads it back.
+  const args = ['run'];
   node.command = 'AD4M_EXECUTOR=' + executor + ' AD4M_PORT=' + settings.port + ' AD4M_LOG_SECRETS=1 ./start-node.sh ' + args.join(' ');
   const log = openSync(LOG_PATH, 'a');
   writeFileSync(LOG_PATH, '$ ' + node.command + '\n', { flag:'a' });
@@ -342,7 +346,7 @@ async function state() {
     people:publicPeople(), loggedIn:[...loggedIn],
     space:existsSync(spacePath) ? readJson(spacePath) : null,
     app:{ hasToken:!!appToken, requestId:handshake.requestId, did:handshake.connectedDid, refused:handshake.refused },
-    agent:null, multiUser:null
+    agent:null, multiUser:null, info:null, users:null, apps:null
   };
   if (node.phase === 'running' && existsSync(credentialPath()) && await portOpen(settings.port)) {
     try {
@@ -350,6 +354,15 @@ async function state() {
         const status = await admin.agent.status();
         out.agent = { initialized:status.isInitialized, unlocked:status.isUnlocked, did:status.did ?? null };
         out.multiUser = await admin.runtime.multiUserEnabled().catch(() => null);
+        const info = await admin.runtime.info().catch(() => null);
+        if (info) out.info = { version:info.ad4mExecutorVersion, commit:info.ad4mExecutorCommit };
+        if (out.multiUser) {
+          const emails = Object.fromEntries(Object.entries(readPeople()).map(([name, p]) => [p.email, name]));
+          out.users = (await admin.runtime.listUsers().catch(() => [])).map(u => ({ name:emails[u.email] ?? null, did:u.did, lastSeen:u.lastSeen ?? null }));
+        }
+        // An app's grant: its name and what it may do. Never its token.
+        if (status.isUnlocked) out.apps = (await admin.agent.getApps().catch(() => [])).map(a => ({ name:a.auth?.appName ?? '?', revoked:!!a.revoked,
+          everything:(a.auth?.capabilities ?? []).some(c => (c.can ?? []).includes('*') && (c.with?.pointers ?? []).includes('*')) }));
       }), 5000, 'node');
     } catch (error) { out.agent = { error:error.message }; }
     if (appToken && out.agent?.unlocked) {
@@ -368,6 +381,17 @@ const viewer = () => { const s = space(); return Object.keys(s.uuids)[0]; };
 const nameOf = did => Object.entries(readPeople()).find(([, p]) => p.did === did)?.[0] ?? null;
 const sentPath = taskId => resolve(STATE, 'requester-sent', shortId(taskId) + '.json');
 const responsePath = taskId => resolve(ROOT, 'out/response-' + shortId(taskId) + '.json');
+// Who is in the space: the people on this node in it, plus (shared space) the other agents the
+// link language knows. "Member" only: nothing here says whether they are online now.
+async function members(client, p, s) {
+  const people = readPeople();
+  const list = Object.keys(s.uuids).map(name => ({ name, did:people[name]?.did ?? null, here:true }));
+  if (s.neighbourhood) {
+    const others = await client.neighbourhood.otherAgents(p.uuid).catch(() => []);
+    for (const did of others) if (!list.some(m => m.did === did)) list.push({ name:nameOf(did), did, here:false });
+  }
+  return list;
+}
 const receiptOf = doc => doc?.payload?.ext?.[NS]?.flowReceipt ?? doc?.payload?.details?.[NS]?.flowReceipt;
 
 const routes = {
@@ -382,6 +406,18 @@ const routes = {
     return { path, version:check.version };
   },
   'POST /api/node/start': body => startNode(body),
+  'POST /api/role'({ role }) {
+    if (![null, 'host', 'join-here', 'join-own'].includes(role ?? null)) throw new Error('Unknown role');
+    settings.role = role ?? null; saveSettings();
+    return { role:settings.role };
+  },
+  // The People card's switch. The answer is what the node says afterwards, not what was asked.
+  async 'POST /api/multiuser'({ on }) {
+    return asAdmin(async admin => {
+      await admin.runtime.setMultiUserEnabled(!!on);
+      return { multiUser:await admin.runtime.multiUserEnabled() };
+    });
+  },
   'POST /api/node/stop': () => stopNode(),
   'GET /api/node/log': (_body, query) => ({ lines:logTail(Number(query.get('lines') ?? 80)) }),
   async 'POST /api/node/reset'() {
@@ -400,6 +436,13 @@ const routes = {
     return result;
   },
   'POST /api/users/add': ({ name }) => demo.addUsers([String(name ?? '').trim()]),
+  // Joining on this computer: become a person on the node that runs here, and log in.
+  async 'POST /api/join-here'({ name }) {
+    name = String(name ?? '').trim();
+    if (node.phase !== 'running') throw new Error('No node runs on this computer yet: the person starting the demo starts it first');
+    if (readPeople()[name]?.login !== 'user') await demo.addUsers([name]);
+    return routes['POST /api/users/login']({ name });
+  },
   async 'POST /api/users/login'({ name }) {
     const person = readPeople()[name];
     if (!person || person.login !== 'user') throw new Error(name + ' is not a user on this node');
@@ -494,8 +537,8 @@ const routes = {
   // Step 7: the flow runs and the votes.
   async 'GET /api/runs'() {
     const s = space();
-    return demo.openAs(viewer(), async ({ p }) => {
-      if (!await demo.hasSocialDna(p)) return { runs:[], installed:false };
+    return demo.openAs(viewer(), async ({ client, p }) => {
+      if (!await demo.hasSocialDna(p)) return { runs:[], installed:false, voters:Object.keys(s.uuids), owner:s.owner, members:await members(client, p, s) };
       const requests = await demo.RequestModel.findAll(p);
       const runs = await FlowInstance.findAll(p, { flowName:'TrustTaskDecision' });
       const states = runs.length ? await p.flowStates(runs.map(run => run.uri)) : [];
@@ -514,7 +557,7 @@ const routes = {
           responded:!!response, responseKind:response?.kind ?? null });
       }
       out.sort((a, b) => (a.issuedAt ?? '') < (b.issuedAt ?? '') ? 1 : -1);
-      return { runs:out, installed:true, voters:Object.keys(s.uuids), owner:s.owner };
+      return { runs:out, installed:true, voters:Object.keys(s.uuids), owner:s.owner, members:await members(client, p, s) };
     });
   },
   'POST /api/vote': ({ action, as, taskId, why }) => demo.vote(action, as, { task:taskId, why:why || undefined }),
