@@ -7,7 +7,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;'
 const short = did => did && did.length > 26 ? did.slice(0, 16) + '…' + did.slice(-4) : (did ?? '');
 const shortId = id => String(id ?? '').replace(/^urn:uuid:/, '').slice(0, 8);
 let S = null;                 // the last state from the server
-const memo = { runs:[], members:null, verified:{}, verdicts:{}, installed:null, released:false, lastClick:0, seen:null };
+const memo = { runs:[], voters:[], members:null, verified:{}, receipts:{}, open:{}, installed:null, released:false, lastClick:0, seen:null };
 
 async function api(method, path, body) {
   try {
@@ -81,20 +81,40 @@ function wire(title, res) {
 const remote = (what, text) => wireGroup('⇠ From another node: ' + what, text ? [{ kind:'remote', text }] : [], true);
 
 // ── Who you are, and which steps that needs ─────────────────────────────────────
-const PATHS = { host:[1, 2, 3, 4, 5, 6, 7, 8], 'join-here':[1, 7, 8], 'join-own':[1, 2, 3, 4, 5, 7, 8] };
+// Three parts: Setup (steps 1 to 4), Space (5) and Decide (6). Joining on this computer needs only
+// step 1 of Setup: the node already runs here.
+const PATHS = { host:[1, 2, 3, 4, 5, 6], 'join-here':[1, 5, 6], 'join-own':[1, 2, 3, 4, 5, 6] };
+const GROUPS = [['setup', 'Setup', [1, 2, 3, 4]], ['space', 'Space', [5]], ['decide', 'Decide', [6]]];
+const groupOf = k => k <= 4 ? 'setup' : k === 5 ? 'space' : 'decide';
 // Kept in this browser, not on the server: two people on one computer each pick their own part.
 const role = () => localStorage.getItem('iiw-role') || null;
 const path = () => PATHS[role()] ?? PATHS.host;
 const me = () => localStorage.getItem('iiw-me') || null;
 let current = Number(localStorage.getItem('iiw-step')) || 1;
+if (!PATHS.host.includes(current)) current = 1;
 function showStep(n) {
   if (!path().includes(n)) n = path().filter(k => k <= n).pop() ?? 1;
   current = n; localStorage.setItem('iiw-step', String(n));
-  document.querySelectorAll('.step').forEach(s => s.classList.toggle('active', Number(s.dataset.n) === n));
+  layout();
   if (S) render();
   $('nodelog').open = n === 4 && !!S?.app.requestId && !S.app.did;
   window.scrollTo({ top:0, behavior:'smooth' });
 }
+// On Setup: its steps, the current one open, the others folded to their header. On Space or
+// Decide: Setup is one bar, and the parts before the current one are folded.
+function layout() {
+  const p = path(), onSetup = current <= 4;
+  document.querySelectorAll('.step').forEach(s => {
+    const k = Number(s.dataset.n), shown = p.includes(k) && (k <= 4 ? onSetup : k <= current);
+    s.classList.toggle('shown', shown); s.classList.toggle('active', k === current); s.classList.toggle('folded', shown && k !== current);
+  });
+  $('bar-setup').classList.toggle('hidden', onSetup);
+}
+document.querySelectorAll('.step h2').forEach(h => {
+  h.onclick = e => { const k = Number(h.closest('.step').dataset.n); if (!e.target.closest('a') && k !== current) showStep(k); };
+});
+const firstOpen = steps => { const d = S ? done() : {}; return steps.find(k => !d[k]) ?? steps[0]; };
+$('bar-setup').onclick = () => showStep(firstOpen(path().filter(k => k <= 4)));
 function move(delta) { const p = path(), i = p.indexOf(current); showStep(p[Math.min(p.length - 1, Math.max(0, i + delta))]); }
 $('btn-back').onclick = () => move(-1);
 $('btn-next').onclick = () => move(1);
@@ -114,53 +134,78 @@ async function refresh() {
   render();
 }
 function light(id, kind, text) { const el = $(id); el.className = 'light ' + kind; el.lastChild.textContent = text; }
+const agentName = () => Object.entries(S?.people ?? {}).find(([, p]) => p.login === 'agent')?.[0] ?? null;
+const loggedInHere = () => { const who = me(); return !!who && S.loggedIn.includes(who); };
 function done() {
   const n = S.node, a = S.agent, sp = S.space, who = me();
-  const inSpace = who && sp?.uuids?.[who];
+  const here = role() === 'join-here';
   return {
-    1:role() === 'join-here' ? !!inSpace : !!role() && S.executor.ok,
-    2:n.phase === 'running', 3:!!a?.unlocked, 4:!!S.app.did, 5:!!sp,
-    6:memo.installed === true && memo.runs.length > 0,
-    7:memo.runs.some(r => r.state !== 'Received'), 8:Object.values(memo.verified).some(Boolean)
+    1:here ? loggedInHere() : !!role() && S.executor.ok,
+    2:n.phase === 'running', 3:!!a?.unlocked, 4:!!S.app.did, 5:here ? !!(who && sp?.uuids?.[who]) : !!sp,
+    6:Object.values(memo.verified).some(Boolean)
+  };
+}
+// One short line in a step's header once it is done, so a folded step still says what it holds.
+function summaries() {
+  const n = S.node, a = S.agent, sp = S.space, r = role();
+  return {
+    1:r === 'join-here' ? 'you are ' + (me() ?? '?') + ' on this node' : (r === 'host' ? 'starting the demo' : 'joining with your own node') + (S.executor.version ? ' · ' + S.executor.version : ''),
+    2:n.url ? 'running at ' + n.url.replace('http://', '') : '',
+    3:(agentName() ? agentName() + ' · ' : '') + short(a?.did),
+    4:'connected',
+    5:sp ? (sp.neighbourhood ? 'shared space' : 'local space') + ' with ' + Object.keys(sp.uuids).join(', ') : '',
+    6:''
   };
 }
 function render() {
-  const n = S.node, a = S.agent, sp = S.space;
+  const n = S.node, a = S.agent, sp = S.space, here = role() === 'join-here';
   const d = done();
+  const spaceFirst = here ? 'Get into the space first (Space, at the top).' : 'Make or join a space first (Space, at the top).';
   const blockers = {
     2:!S.executor.ok && 'Choose the executor first (step 1).',
     3:n.phase !== 'running' && 'Start the node first (step 2).',
     4:!a?.unlocked && 'Create or unlock the agent first (step 3).',
-    5:!S.app.did && 'Connect the page first (step 4).',
-    6:!sp && 'Make or join a space first (step 5).',
-    7:!sp && (role() === 'join-here' ? 'Get into the space first (step 1).' : 'Make or join a space first (step 5).'),
-    8:!sp && (role() === 'join-here' ? 'Get into the space first (step 1).' : 'Make or join a space first (step 5).')
+    5:here ? !loggedInHere() && 'Add yourself to this node first (step 1).' : !S.app.did && 'Connect the page first (step 4).',
+    6:!d[5] && spaceFirst
   };
-  if (n.phase !== 'running') for (const k of [4, 5, 6, 7, 8]) blockers[k] = blockers[k] || (role() === 'join-here' ? 'No node runs on this computer.' : 'The node is not running (step 2).');
-  // Steps and pills for this path.
+  if (n.phase !== 'running') for (const k of [4, 5, 6]) blockers[k] = blockers[k] || (here ? 'No node runs on this computer.' : 'The node is not running (step 2).');
   if (!path().includes(current)) return showStep(current);
-  const pills = path().map(k => '<button class="pill' + (k === current ? ' on' : '') + (d[k] ? ' done' : '') + '" data-step="' + k + '" title="Step ' + k + '">' + k + '</button>').join('');
-  if ($('pills').dataset.html !== pills) { $('pills').innerHTML = pills; $('pills').dataset.html = pills; $('pills').querySelectorAll('.pill').forEach(p => { p.onclick = () => showStep(Number(p.dataset.step)); }); }
-  for (const k of [1, 2, 3, 4, 5, 6, 7, 8]) {
+  layout();
+  // Three pills: Setup, Space, Decide. A pill is done when all its steps on this path are.
+  const p = path();
+  const pills = GROUPS.map(([g, label, ks]) => { const steps = ks.filter(k => p.includes(k));
+    return '<button class="pill' + (groupOf(current) === g ? ' on' : '') + (steps.every(k => d[k]) ? ' done' : '') + '" data-group="' + g + '">' + label + '</button>'; }).join('');
+  if ($('pills').dataset.html !== pills) {
+    $('pills').innerHTML = pills; $('pills').dataset.html = pills;
+    $('pills').querySelectorAll('.pill').forEach(b => { b.onclick = () => showStep(firstOpen(GROUPS.find(([g]) => g === b.dataset.group)[2].filter(k => path().includes(k)))); });
+  }
+  const sums = summaries();
+  for (const k of [1, 2, 3, 4, 5, 6]) {
     const el = $('s' + k);
     el.classList.toggle('done', !!d[k]);
     el.classList.toggle('blocked', !!blockers[k]);
+    el.querySelector('h2 .sum').textContent = d[k] && sums[k] ? sums[k] : '';
     let b = el.querySelector('.blocker');
     if (blockers[k]) { if (!b) { b = document.createElement('p'); b.className = 'blocker'; el.querySelector('h2').after(b); } b.textContent = blockers[k]; }
     else b?.remove();
   }
-  const p = path(), last = p.indexOf(current) === p.length - 1;
+  const setup = p.filter(k => k <= 4), setupDone = setup.every(k => d[k]);
+  $('bar-setup').classList.toggle('todo', !setupDone);
+  $('bar-setup').querySelector('.bar-mark').textContent = setupDone ? '✓' : '!';
+  $('bar-setup-sum').textContent = setupDone ? setup.map(k => sums[k]).filter(Boolean).slice(here ? 0 : 1).join(' · ') : 'not finished yet';
+  const last = p.indexOf(current) === p.length - 1;
   $('btn-back').disabled = p.indexOf(current) === 0;
   $('btn-next').disabled = last;
   $('btn-next').classList.toggle('ready', !!d[current] && !last);
   // The client light: does this demo app reach a node, and does it hold a token?
   const who = me();
   if (n.phase !== 'running') light('client-light', 'no', 'no node');
-  else if (role() === 'join-here') light('client-light', who && S.loggedIn.includes(who) ? 'ok' : 'no', who && S.loggedIn.includes(who) ? 'connected as ' + who : 'not logged in');
+  else if (here) light('client-light', loggedInHere() ? 'ok' : 'no', loggedInHere() ? 'connected as ' + who : 'not logged in');
   else if (S.app.did) light('client-light', 'ok', 'connected');
   else if (S.app.requestId) light('client-light', 'wait', 'waiting for the code');
   else light('client-light', 'no', 'not connected');
-  renderRole(); renderExecutor(); renderHere(); renderNode(); renderAgent(); renderHandshake(); renderSpace(); renderArrive();
+  renderRole(); renderExecutor(); renderHere(); renderNode(); renderAgent(); renderHandshake(); renderSpace(); renderDecide();
+  renderRuns();
   renderPanel();
 }
 
@@ -172,14 +217,14 @@ function renderRole() {
   if (r) $('fork-join-how').classList.add('hidden');
   $('role-line').classList.toggle('hidden', !r);
   if (r) {
-    const text = { host:'You are <b>starting the demo</b>: you run the node, make the space and receive the trust task. Steps 1 to 8.',
-      'join-here':'You are <b>joining on this computer</b>: you become a second person on the node that already runs here. Then you vote (step 7) and check the receipt (step 8).',
-      'join-own':'You are <b>joining with your own node</b>: steps 1 to 4 as usual, then you join the space by the address the other person sends you (step 5), vote (7) and check the receipt (8). Step 6 happens on their computer: their demo app checks the trust task, then stores it in the space on their node, and the links sync to yours.' }[r];
+    const text = { host:'You are <b>starting the demo</b>: you run the node, make the space and take in the requests.',
+      'join-here':'You are <b>joining on this computer</b>: you become a second person on the node that runs here, then you vote.',
+      'join-own':'You are <b>joining with your own node</b>: you start your own node, join the space by the address the other person sends you, then vote. New requests come from their window.' }[r];
     if ($('role-line').dataset.r !== r) { $('role-line').innerHTML = text + ' <a href="#" id="role-change">Change</a>'; $('role-line').dataset.r = r; $('role-change').onclick = e => { e.preventDefault(); setRole(null); }; }
   }
   $('exe-part').classList.toggle('hidden', !r || r === 'join-here');
   $('here-part').classList.toggle('hidden', r !== 'join-here');
-  $('s1').querySelector('h2').lastChild.textContent = r === 'join-here' ? ' Join on this computer' : r ? ' Get the executor' : ' Who are you in this demo?';
+  $('s1').querySelector('h2 .t').textContent = r === 'join-here' ? 'Join on this computer' : r ? 'Get the executor' : 'Who are you in this demo?';
 }
 async function loadRelease() {
   const res = await api('GET', '/api/release');
@@ -225,14 +270,14 @@ function renderHere() {
   say('here-status', loggedIn ? '✓ You are <b>' + esc(who) + '</b> on this node, with your own DID <code>' + esc(short(S.people[who]?.did)) + '</code>. The page logged you in with a token and never shows it.' : '', 'ok');
   let html = '';
   if (!loggedIn) html = '';
-  else if (!sp) html = '<span class="wait">No space yet. The person starting the demo makes it in their step 5: a local space with you as the owner, or a shared space you then join here.</span>';
-  else if (sp.uuids[who]) html = '<span class="ok">✓ You are in the space. Go to step 7 to vote.</span>';
+  else if (!sp) html = '<span class="wait">No space yet. The person starting the demo makes it under Space: a local space with you as the owner, or a shared space you then join here.</span>';
+  else if (sp.uuids[who]) html = '<span class="ok">✓ You are in the space. Go to Decide to vote.</span>';
   else if (sp.neighbourhood) html = 'The space is shared. Join it as yourself: <button id="btn-here-join">Join the space as ' + esc(who) + '</button>';
-  else html = '<span class="wait">The space here is local and you are not in it: it holds only the people it was made for. The person starting the demo can share it (their step 5, "Share this space"); then join it here.</span>';
+  else html = '<span class="wait">The space here is local and you are not in it: it holds only the people it was made for. The person starting the demo can share it (under Space, "Share this space"); then join it here.</span>';
   if ($('here-space').dataset.html !== html) {
     $('here-space').innerHTML = html; $('here-space').dataset.html = html;
     const join = $('btn-here-join');
-    if (join) join.onclick = () => act(join, 's1', 'I am joining the shared space as ' + who, 'POST', '/api/space/join', { url:S.space?.neighbourhood, as:who }).then(afterSpace);
+    if (join) join.onclick = () => act(join, 's5', 'I am joining the shared space as ' + who, 'POST', '/api/space/join', { url:S.space?.neighbourhood, as:who }).then(afterSpace);
   }
 }
 $('btn-here').onclick = async e => {
@@ -265,7 +310,7 @@ $('btn-start').onclick = e => act(e.target, 's2', 'I am starting your node with 
 $('btn-stop').onclick = e => act(e.target, 's2', 'I am stopping your node', 'POST', '/api/node/stop', {});
 $('btn-reset').onclick = e => {
   if (!confirm('Start over? This stops the node and deletes .node/ (the node\'s data and its agent), .demo/ and .demo-test/ (people, the space, keys) and out/.')) return;
-  memo.runs = []; memo.verified = {}; memo.installed = null; memo.members = null; memo.seen = null;
+  memo.runs = []; memo.verified = {}; memo.receipts = {}; memo.open = {}; memo.installed = null; memo.members = null; memo.seen = null;
   localStorage.removeItem('iiw-me');
   act(e.target, 's2', 'I am stopping the node and deleting its data', 'POST', '/api/node/reset', {});
 };
@@ -383,24 +428,29 @@ function renderSpace() {
   const fill = (sel, names) => { const html = names.map(n => '<option>' + esc(n) + '</option>').join(''); if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; } };
   document.querySelectorAll('.owner-select').forEach(sel => fill(sel, [...users, ...agent]));
   fill($('join-as'), [...agent, ...users]);
-  $('s5-title').textContent = r === 'join-own' ? 'Join the shared space' : 'Make a space';
+  $('s5-title').textContent = r === 'join-own' ? 'Join the shared space' : r === 'join-here' ? 'Get into the space' : 'Make a space';
+  $('s5-lede').textContent = r === 'join-own' ? 'Join the space the starter shared with you.' : r === 'join-here' ? 'Get into the space the starter made on this node.' : 'Make the space that holds the requests, the flow and the votes.';
   document.querySelectorAll('#space-choices [data-for]').forEach(c => c.classList.toggle('hidden', c.dataset.for === 'join' ? r !== 'join-own' : r === 'join-own'));
-  $('space-choices').classList.toggle('hidden', !!sp);
+  $('space-choices').classList.toggle('hidden', !!sp || r === 'join-here');
+  $('here-space').classList.toggle('hidden', r !== 'join-here');
+  $('space-current').classList.toggle('hidden', r === 'join-here');
   if (!sp) { if ($('space-current').innerHTML) $('space-current').innerHTML = ''; return; }
   const names = Object.keys(sp.uuids);
   let html = '<span class="ok">✓ ' + (sp.neighbourhood ? 'Shared space' : 'Local space') + '</span>, AD4M perspective <code>' + esc(Object.values(sp.uuids)[0]) + '</code>. '
     + 'In it on this node: ' + names.map(n => '<b>' + esc(n) + '</b>').join(', ') + '.';
   if (sp.owner) html += ' Owner: <b>' + esc(sp.owner) + '</b>. Trust tasks name the space\'s trust-task DID <code>' + esc(short(sp.spaceDid)) + '</code> as recipient: a key this demo app holds, not the node.';
   else html += ' Joined here: the demo app of the person who made it takes in the trust tasks and stores them on their node.';
-  if (sp.neighbourhood && sp.owner) html += '<div class="sendbox"><b>Send this address to the second person.</b> They open this demo on their computer, choose "I\'m joining someone", then "With my own node", and paste it in their step 5.'
+  if (sp.neighbourhood && sp.owner) html += '<div class="sendbox"><b>Send this address to the second person.</b> They open this demo on their computer, choose "I\'m joining someone", then "With my own node", and paste it under Space.'
     + '<code id="nh-url">' + esc(sp.neighbourhood) + '</code><button class="secondary small" id="btn-copy">Copy</button>'
     + ' <span class="small muted">Someone on this computer chooses "On this computer" instead and joins it there.</span></div>';
   if (sp.owner && !sp.neighbourhood) html += '<p class="small muted">A second node, or a person added after this space was made, cannot get into a local space. Share it to let them in:</p>'
     + '<button class="secondary small" id="btn-share-now">Share this space through the link server</button>';
   if (!sp.neighbourhood && names.length < 2) html += '<br><span class="small wait">Only one person is in this space, so only "reject" can end a run (accept needs 2 voters).</span>';
+  if (sp.owner) html += '<p class="small">Next: <a href="#" id="go-decide">Decide</a>.</p>';
   if ($('space-current').dataset.html !== html) {
     $('space-current').innerHTML = html; $('space-current').dataset.html = html;
     const copy = $('btn-copy'); if (copy) copy.onclick = () => navigator.clipboard?.writeText(sp.neighbourhood);
+    const go = $('go-decide'); if (go) go.onclick = e => { e.preventDefault(); showStep(6); };
     const share = $('btn-share-now');
     if (share) share.onclick = () => act(share, 's5', 'I am sharing your space through Coasys\'s link server', 'POST', '/api/space/share', { link:'server', serverUrl:$('server-url').value.trim() }).then(afterSpace);
   }
@@ -411,7 +461,7 @@ $('btn-space-share').onclick = e => act(e.target, 's5', 'I am making a space and
 $('btn-space-join').onclick = e => act(e.target, 's5', 'I am joining the shared space', 'POST', '/api/space/join', { url:$('join-url').value.trim(), as:$('join-as').value }).then(afterSpace);
 function afterSpace(res) { if (res.ok) { checkFlow(); loadRuns(); } }
 
-// ── 6. Trust task and flow ──────────────────────────────────────────────────────
+// ── Decide: new requests, each run as a card, votes, receipts ───────────────────
 function diagram(state, end) {
   const node = $('diagram-tpl').content.firstElementChild.cloneNode(true);
   for (const g of node.querySelectorAll('g[data-state]')) g.classList.toggle('current', g.dataset.state === state || g.dataset.state === end);
@@ -435,23 +485,28 @@ function showTask(doc, fresh) {
   for (const key of ['issuer', 'recipient', 'subject', 'role']) text = text.replace(new RegExp('(&quot;' + key + '&quot;: )(&quot;[^&]*&quot;)'), '$1<span class="hl">$2</span>');
   $('task-json').innerHTML = (fresh ? '' : '<span class="muted">// the last one signed in this folder\n</span>') + text;
 }
-async function checkFlow(button) {
+async function checkFlow() {
   if (!S?.space) return;
-  const res = button ? await act(button, 's6', 'I am looking for the flow in your space', 'GET', '/api/flow/installed') : await api('GET', '/api/flow/installed');
-  if (!res.ok) { say('flow-status', esc(res.error), 'no'); return; }
+  const res = await api('GET', '/api/flow/installed');
+  if (!res.ok) return;
   memo.installed = res.result.installed;
-  say('flow-status', res.result.installed ? '✓ The flow <code>iiw://TrustTaskDecisionFlow</code> and its classes are in the space.'
-    : (S.space.owner ? 'Not installed yet. Install it with the button.' : 'Not here yet. The space\'s maker installs it; it then syncs to this node. Check again in a few seconds.'), res.result.installed ? 'ok' : 'wait');
-  $('btn-flow-install').disabled = res.result.installed || !S.space.owner;
   render();
 }
-function renderArrive() {
-  const joined = S.space && !S.space.owner;
-  $('arrive-take').classList.toggle('hidden', !!joined); $('arrive-joined').classList.toggle('hidden', !joined);
-  document.querySelector('#s6 .reqcard').classList.toggle('hidden', !!joined);
-  ['btn-req-new', 'btn-req-receive', 'btn-req-tamper'].forEach(id => { $(id).disabled = memo.installed !== true; });
-  if (memo.installed !== true) say('receive-status', 'Install the flow first.', 'muted');
-  else if ($('receive-status').textContent === 'Install the flow first.') say('receive-status', '');
+// Only the starter's demo app takes in requests: it holds the space's trust-task key.
+const isStarter = () => role() === 'host' && !!S?.space?.owner;
+// The person whose window makes new requests, if this page knows their name.
+const starter = () => { if (role() !== 'join-here') return null; const a = agentName(); return a && a !== me() ? a : null; };
+const starterWindow = () => starter() ? starter() + '\'s window' : 'the starter\'s window';
+let newBusy = false;
+function renderDecide() {
+  const starterHere = isStarter();
+  $('new-part').classList.toggle('hidden', !starterHere);
+  $('new-elsewhere').classList.toggle('hidden', starterHere || !S.space);
+  $('new-elsewhere').textContent = 'New requests come from ' + starterWindow() + '.';
+  $('btn-new').disabled = $('btn-req-tamper').disabled = newBusy || !S.space || S.node.phase !== 'running';
+  const waiting = !starterHere && S.space && memo.installed === false
+    ? 'The flow has not reached this node yet. It comes with the space\'s links from ' + (starter() ?? 'the starter') + '\'s node; this page looks again every few seconds.' : '';
+  if ($('flow-status').textContent !== waiting) say('flow-status', esc(waiting), 'wait');
 }
 const CHECK_FOR_CODE = { proofInvalid:'proof', wrongRecipient:'recipient', malformedRequest:'schema', unsupportedType:'schema', expired:'fresh', duplicate:'not a duplicate', idConflict:'not a duplicate' };
 function badges(kind, code) {
@@ -459,41 +514,43 @@ function badges(kind, code) {
     b.className = kind === 'accepted' ? 'ok' : kind === 'rejected' && CHECK_FOR_CODE[code] === b.textContent ? 'no' : '';
   });
 }
-$('btn-flow-check').onclick = e => checkFlow(e.target);
-$('btn-flow-install').onclick = async e => { const res = await act(e.target, 's6', 'I am installing the flow and its classes in your space', 'POST', '/api/flow/install', {}); if (res.ok) checkFlow(); };
-let pending = 'out/request.json';
-$('btn-req-new').onclick = async e => {
-  const res = await act(e.target, 's6', 'Requester: I sign a request, "give Carol the role member", and send it to this demo app', 'POST', '/api/request/new', {});
-  if (res.ok) { pending = res.result.file; showTask(res.result.doc, true); badges(null); say('receive-status', 'The requester signed it and saved it as <code>' + esc(res.result.file) + '</code>. Nothing has reached the node yet. Now let this demo app check it.', 'wait'); }
-};
-$('btn-req-tamper').onclick = async e => {
-  const res = await act(e.target, 's6', 'Requester: I sign a request, then change it', 'POST', '/api/request/new', { tamper:true });
-  if (res.ok) { pending = res.result.file; showTask(res.result.doc, true); badges(null); say('receive-status', 'Changed after signing: ' + esc(res.result.changed) + '. Now let this demo app check it.', 'wait'); }
-};
-$('btn-req-receive').onclick = async e => {
-  const res = await act(e.target, 's6', 'I check the task with ToIP\'s code, then store it in your space and start a run of the flow', 'POST', '/api/request/receive', { file:pending });
-  if (!res.ok) return say('receive-status', esc(res.error), 'no');
-  const r = res.result;
-  badges(r.kind, r.code);
-  if (r.kind === 'accepted') say('receive-status', 'All five checks passed in this demo app. Stored byte for byte ✓, and AD4M started a run of the flow in state <b>' + esc(r.state) + '</b>. Go to step 7 to vote.', 'ok');
-  else if (r.kind === 'rejected') say('receive-status', 'Refused before any flow: <b>' + esc(r.code) + '</b>. Nothing reached the node. This demo app signed an error for the requester: <code>' + esc(r.path) + '</code>.', 'no');
-  else say('receive-status', esc(r.kind) + (r.path ? ' → <code>' + esc(r.path) + '</code>' : ''), 'wait');
-  pending = 'out/request.json';
-  loadRuns();
-};
+// "+ New request": install the flow the first time, the requester signs, this demo app checks it
+// and starts a run. Three calls, each on the wire as before.
+async function newRequest(button, tamper) {
+  newBusy = true; button.classList.add('busy'); render();
+  try {
+    if (memo.installed !== true) {
+      const res = await act(null, 's6', 'I am installing the flow and its classes in your space', 'POST', '/api/flow/install', {});
+      if (!res.ok) return say('receive-status', esc(res.error), 'no');
+      memo.installed = true;
+    }
+    const made = await act(null, 's6', tamper ? 'Requester: I sign a request, then change it' : 'Requester: I sign a request, "give Carol the role member", and send it to this demo app', 'POST', '/api/request/new', tamper ? { tamper:true } : {});
+    if (!made.ok) return say('receive-status', esc(made.error), 'no');
+    showTask(made.result.doc, true); badges(null); $('inapp-checks').classList.remove('hidden');
+    const res = await act(null, 's6', 'I check the task with ToIP\'s code, then store it in your space and start a run of the flow', 'POST', '/api/request/receive', { file:made.result.file });
+    if (!res.ok) return say('receive-status', esc(res.error), 'no');
+    const r = res.result;
+    badges(r.kind, r.code);
+    if (r.kind === 'accepted') { memo.open = {}; say('receive-status', 'All five checks passed. A new run of the flow started: vote on it below.', 'ok'); }
+    else if (r.kind === 'rejected') say('receive-status', (made.result.changed ? 'Changed after signing: ' + esc(made.result.changed) + '. ' : '') + 'Refused before any flow: <b>' + esc(r.code) + '</b>. Nothing reached the node. This demo app signed an error for the requester: <code>' + esc(r.path) + '</code>.', 'no');
+    else say('receive-status', esc(r.kind) + (r.path ? ' → <code>' + esc(r.path) + '</code>' : ''), 'wait');
+    await loadRuns();
+  } finally { newBusy = false; button.classList.remove('busy'); render(); }
+}
+$('btn-new').onclick = e => newRequest(e.currentTarget, false);
+$('btn-req-tamper').onclick = e => newRequest(e.currentTarget, true);
 
-// ── 7. Runs and votes ───────────────────────────────────────────────────────────
 async function loadRuns(button) {
   if (!S?.space || S.node.phase !== 'running') { memo.runs = []; memo.members = null; memo.installed = null; return; }
-  const res = button ? await act(button, 's7', 'I am listing the flow runs in your space', 'GET', '/api/runs') : await api('GET', '/api/runs');
+  const url = '/api/runs' + (button ? '?fresh=1' : '');
+  const res = button ? await act(button, 's6', 'I am listing the flow runs in your space', 'GET', url) : await api('GET', url);
   if (!res.ok) { $('runs-note').textContent = res.error; return; }
   noticeRemote(res.result);
   memo.runs = res.result.runs;
+  memo.voters = res.result.voters ?? [];
   memo.members = res.result.members ?? null;
   if (res.result.installed !== undefined && memo.installed !== res.result.installed) { memo.installed = res.result.installed; checkFlow(); }
-  $('runs-note').textContent = memo.runs.length ? memo.runs.length + ' run(s); refreshes every 4 s' : '';
-  renderRuns(res.result.voters ?? []);
-  renderAnswerTasks();
+  $('runs-note').textContent = memo.runs.length ? memo.runs.length + ' request' + (memo.runs.length === 1 ? '' : 's') + '. This list refreshes every 4 s.' : '';
   render();
 }
 // Things this node got from other nodes: nobody clicked here. Drawn as dashed rows on the wire.
@@ -515,73 +572,61 @@ function noticeRemote(result) {
     if (before.states[run] && before.states[run] !== state && Date.now() - memo.lastClick > 4000) remote('flow state ' + before.states[run] + ' → ' + state, 'seen with space.flowStates()');
 }
 const votedFor = (run, name) => run.votes.find(v => v.name === name);
-function renderRuns(voters) {
-  const box = $('runs');
-  if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;   // do not redraw under the cursor
-  if (!memo.runs.length) { box.innerHTML = '<p class="muted">No runs yet. A run starts when ' + (S.space?.owner ? 'this demo app takes in a trust task (step 6).' : 'the other person\'s demo app takes in a trust task; it syncs here.') + '</p>'; return; }
-  const open = new Set([...box.querySelectorAll('input[data-why]')].filter(i => i.value).map(i => i.dataset.why + '|' + i.value));
-  const joiningHere = role() === 'join-here', who = joiningHere ? me() : null;
-  box.innerHTML = '';
-  for (const run of memo.runs) {
-    const el = document.createElement('div'); el.className = 'run';
-    const end = run.responded ? (run.state === 'Accepted' ? 'response' : 'error') : null;
-    el.innerHTML = '<div class="head"><div><b>Task ' + esc(shortId(run.taskId)) + '</b>: give <code>' + esc(short(run.subject)) + '</code> (Carol) the role <b>' + esc(run.role) + '</b></div>'
-      + '<div>State: <b class="' + (run.state === 'Accepted' ? 'ok-text' : run.state === 'Rejected' ? 'no-text' : '') + '">' + esc(run.state) + '</b>'
-      + (run.responded ? ' · answered (' + esc(run.responseKind) + ')' : '') + '</div></div>'
-      + '<div class="diagram"></div>'
-      + '<div class="votes small">' + (run.votes.length ? 'Votes so far: ' + run.votes.map(v => '<b>' + esc(v.name ?? short(v.voter) + ' (another node)') + '</b> → ' + esc(v.toState)).join(', ') : 'No votes yet.') + '</div>'
-      + (run.state === 'Received' ? voters.map(name => {
-        const mine = votedFor(run, name);
-        // Joining on this computer: you vote as yourself; the others vote in their own browser.
-        if (joiningHere && name !== who) return '<div class="vote-row"><span class="name">' + esc(name) + '</span><span class="muted small">' + (mine ? 'voted ' + esc(mine.toState) : 'votes in their own browser') + '</span></div>';
-        return '<div class="vote-row"><span class="name">' + esc(name) + (name === who ? ' (you)' : '') + '</span>' + (mine ? '<span class="muted small">voted ' + esc(mine.toState) + '</span>'
-          : '<input data-why="' + esc(run.taskId + name) + '" placeholder="why (optional)" size="18">'
-          + '<button data-vote="accept" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Accept</button>'
-          + '<button class="danger" data-vote="reject" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Reject</button>') + '</div>';
-      }).join('') : '<p class="small muted">This run has ended. ' + (S.space?.owner ? 'Step 8 makes its receipt and answer.' : 'The other person\'s demo app makes the receipt and the answer; check the receipt in step 8.') + '</p>');
-    el.querySelector('.diagram').append(diagram(run.state, end));
-    box.append(el);
-  }
-  for (const key of open) { const [k, v] = key.split('|'); const i = box.querySelector('input[data-why="' + CSS.escape(k) + '"]'); if (i) i.value = v; }
-  box.querySelectorAll('[data-vote]').forEach(b => {
-    b.onclick = async () => {
-      const why = box.querySelector('input[data-why="' + CSS.escape(b.dataset.task + b.dataset.as) + '"]')?.value;
-      await act(b, 's7', 'I am voting ' + b.dataset.vote + ' as ' + b.dataset.as, 'POST', '/api/vote', { action:b.dataset.vote, as:b.dataset.as, taskId:b.dataset.task, why });
-      loadRuns();
-    };
-  });
-}
-$('btn-runs').onclick = e => loadRuns(e.target);
-
-// ── 8. Receipt, answer, check ───────────────────────────────────────────────────
-function renderAnswerTasks() {
-  const sel = $('answer-task'), current = sel.value;
-  const html = memo.runs.map(r => '<option value="' + esc(r.taskId) + '">' + esc(shortId(r.taskId)) + ' · ' + esc(r.state) + (r.responded ? ' · answered' : '') + '</option>').join('');
-  if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; if (current) sel.value = current; }
-  const joined = S?.space && !S.space.owner;
-  $('btn-respond').classList.toggle('hidden', !!joined);
-  $('s8-now').classList.toggle('hidden', !!joined);
-  const intro = joined ? 'When the run has ended, the other person\'s demo app asks their AD4M node for a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. It signs the answer to the requester with its own key. Here, your node checks that receipt: its address is the SHA-256 of its content, and the votes in it are signed links.'
-    : 'When a run has ended, this demo app asks AD4M to make a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. This demo app wraps it into a trust-task answer signed with its own key, and the requester checks the answer against the request it sent.';
-  if ($('s8-intro').dataset.j !== String(!!joined)) { $('s8-intro').innerHTML = intro; $('s8-intro').dataset.j = String(!!joined); }
-  document.querySelector('#s8 .reqcard').classList.toggle('hidden', !!joined);
-}
-const taskNow = () => $('answer-task').value;
 function receiptOf(doc) { return doc?.payload?.ext?.['org.coasys.ad4m']?.flowReceipt ?? doc?.payload?.details?.['org.coasys.ad4m']?.flowReceipt; }
-function nameOrDid(did) { const hit = Object.entries(S.people).find(([, p]) => p.did === did); return hit ? hit[0] + ' (' + short(did) + ')' : short(did); }
-function spaceSide(response, verdict, receiptUri) {
-  const fr = receiptOf(response);
-  const key = response.threadId;
-  if (verdict) memo.verdicts[key] = verdict; else verdict = memo.verdicts[key];
-  $('space-side').innerHTML = '<p><span class="ok-text">✓ flow receipt</span> <code>' + esc(receiptUri ?? fr?.uri) + '</code></p>'
-    + (verdict ? '<p>verifyFlowReceipt: <b>' + esc(verdict.outcome) + '</b>. Final state <b>' + esc(verdict.terminalState) + '</b>, voters: ' + (verdict.voters ?? []).map(d => esc(nameOrDid(d))).join(', ') + '</p>'
-      : fr ? '<p>The receipt says: final state <b>' + esc(fr.terminalState) + '</b>, voters: ' + (fr.voters ?? []).map(d => esc(nameOrDid(d))).join(', ') + '</p>' : '')
-    + '<p>Signed answer: <code>' + esc(response.type.replace('https://trusttasks.org/spec/', '')) + '</code>' + (response.payload?.code ? ', code <b>' + esc(response.payload.code) + '</b>' : '') + '</p>'
-    + '<details><summary>The signed answer (JSON)</summary><pre class="json">' + esc(JSON.stringify(response, null, 2)) + '</pre></details>';
+function nameOrDid(did) { const hit = Object.entries(S.people).find(([, p]) => p.did === did); return hit ? hit[0] : short(did); }
+const receiptAddress = uri => uri ? 'ad4m://flow/receipt/' + String(uri).split('/').pop().slice(0, 10) + '…' : '';
+// One card per run: the request in words, its state, the votes, and once it has ended, the receipt.
+function runCard(run, newest) {
+  const ended = run.state !== 'Received';
+  const kind = run.state === 'Accepted' ? 'ok' : run.state === 'Rejected' ? 'no' : 'open';
+  const head = '<span class="what">Give Carol the role <b>' + esc(run.role) + '</b></span><span class="state ' + kind + '">' + esc(ended ? run.state : 'Open') + '</span>'
+    + '<span class="muted small">task ' + esc(shortId(run.taskId)) + '</span>';
+  const votes = '<p class="votes small">' + (run.votes.length ? 'Votes: ' + run.votes.map(v => '<b>' + esc(v.name ?? short(v.voter) + ' (another node)') + '</b> → ' + esc(v.toState)).join(', ') : 'No votes yet.') + '</p>';
+  if (!ended) {
+    const joiningHere = role() === 'join-here', who = joiningHere ? me() : null;
+    const rows = memo.voters.map(name => {
+      const mine = votedFor(run, name);
+      // Joining on this computer: you vote as yourself; the others vote in their own browser.
+      if (joiningHere && name !== who) return '<div class="vote-row"><span class="name">' + esc(name) + '</span><span class="muted small">' + (mine ? 'voted ' + esc(mine.toState) : 'votes in their own browser') + '</span></div>';
+      return '<div class="vote-row"><span class="name">' + esc(name) + (name === who ? ' (you)' : '') + '</span>' + (mine ? '<span class="muted small">voted ' + esc(mine.toState) + '</span>'
+        : '<input data-why="' + esc(run.taskId + name) + '" placeholder="why (optional)" size="16">'
+        + '<button data-vote="accept" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Accept</button>'
+        + '<button class="danger" data-vote="reject" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Reject</button>') + '</div>';
+    }).join('');
+    return '<div class="run open" data-run="' + esc(run.runUri) + '"><div class="head">' + head + '</div>' + votes + rows + '</div>';
+  }
+  const again = isStarter() ? 'Start a new request above to ' + (run.state === 'Rejected' ? 'try again.' : 'run it again.') : 'Ask ' + (starter() ?? 'the starter') + ' for a new request.';
+  const open = memo.open[run.runUri] ?? newest;
+  return '<details class="run ended ' + kind + '" data-run="' + esc(run.runUri) + '"' + (open ? ' open' : '') + '><summary><span class="head">' + head + '</span>'
+    + '<span class="again">' + esc(again) + '</span></summary>' + votes + receiptPart(run) + '</details>';
+}
+function receiptPart(run) {
+  const got = memo.receipts[run.taskId], starterHere = isStarter();
+  let html = got ? receiptHtml(got) : '';
+  if (got && !got.error) return html;
+  if (!starterHere && !run.responded) return html + '<p class="small muted">The receipt comes from ' + (starter() ? starter() + '\'s' : 'the starter\'s') + ' demo app. You can check it here once it is made.</p>';
+  const label = starterHere ? (run.responded ? 'Check the receipt' : 'Make the receipt and check it') : 'Check the receipt on this node';
+  return html + '<div class="row"><button class="small" data-receipt="' + esc(run.taskId) + '">' + label + '</button></div>';
+}
+function receiptHtml(got) {
+  if (got.error) return '<p class="no-text small">' + esc(got.error) + '</p>';
+  const fr = receiptOf(got.response), v = got.verdict;
+  const final = v?.terminalState ?? fr?.terminalState, voters = (v?.voters ?? fr?.voters ?? []).map(nameOrDid);
+  let html = '<div class="receipt"><p><span class="ok-text">✓ Flow receipt</span> <code>' + esc(receiptAddress(got.receiptUri ?? fr?.uri)) + '</code>: final state <b>' + esc(final) + '</b>, votes from ' + voters.map(n => '<b>' + esc(n) + '</b>').join(', ') + '.</p>';
+  if (v) html += '<p class="small">' + (got.verify ? 'The node' : 'This node') + ' checked the receipt (<code>verifyFlowReceipt</code>): <b>' + esc(v.outcome) + '</b>.</p>';
+  if (got.verify) html += '<p>' + (got.verify.ok ? '<span class="ok-text">✓ The requester checked the signed answer: its signature, the receipt\'s hash and the link to its request check out.</span>' : '<span class="no-text">✗ The answer failed a check.</span>') + '</p>';
+  html += '<details><summary>The checks and the signed answer</summary>'
+    + (got.verify ? '<ul class="checks">' + got.verify.checks.map(c => '<li class="' + (c.ok ? '' : 'no') + '">' + esc(c.name) + '</li>').join('') + '</ul><p class="small">' + esc(got.verify.limitation) + '.</p>' : '')
+    + '<p class="small">Signed answer: <code>' + esc(got.response.type.replace('https://trusttasks.org/spec/', '')) + '</code>' + (got.response.payload?.code ? ', code <b>' + esc(got.response.payload.code) + '</b>' : '') + '</p>'
+    + (got.verify ? linksBetween(got.verify.request, got.response) : '')
+    + '<details><summary>The signed answer (JSON)</summary><pre class="json">' + esc(JSON.stringify(got.response, null, 2)) + '</pre></details>'
+    + (got.verify ? '<details><summary>The request it sent (JSON)</summary><pre class="json">' + esc(JSON.stringify(got.verify.request, null, 2)) + '</pre></details>' : '')
+    + '</details></div>';
+  return html;
 }
 function linksBetween(request, response) {
   const fr = receiptOf(response);
-  if (!request || !fr) { $('links-between').innerHTML = ''; return; }
+  if (!request || !fr) return '';
   let raw = null;
   try { raw = JSON.parse(JSON.parse(fr.receipt.outputs.find(o => o.class_name === 'IiwTrustTaskRequest').content).raw); } catch {}
   const sha = fr.uri.split('/').pop();
@@ -593,40 +638,56 @@ function linksBetween(request, response) {
     ['the state the flow ended in, in the answer', fr.terminalState, fr.receipt.terminal_state, 'the receipt\'s <code>terminal_state</code>'],
     ['the receipt\'s address ends in', sha, fr.sha256, 'the SHA-256 of the receipt', v => String(v).slice(0, 16) + '…']
   ];
-  $('links-between').innerHTML = '<details><summary>How the trust task and the flow connect, field by field</summary><div class="match">'
+  return '<details><summary>How the trust task and the flow connect, field by field</summary><div class="match">'
     + rows.map(([l, a, b, r, f = v => v]) => '<div>' + l + '<br><code>' + esc(f(a)) + '</code></div><div class="mid' + (a === b ? '' : ' no-text') + '">' + (a === b ? '=' : '≠') + '</div><div>' + r + '<br><code>' + esc(f(b)) + '</code></div>').join('') + '</div></details>';
 }
-$('btn-respond').onclick = async e => {
-  const res = await act(e.target, 's8', 'I ask your node for the receipt, check it, then sign the answer with the trust-task key', 'POST', '/api/respond', { taskId:taskNow() });
-  if (!res.ok) { $('space-side').innerHTML = '<p class="no-text">' + esc(res.error) + '</p>'; return; }
-  spaceSide(res.result.response, res.result.verdict, res.result.receiptUri);
-  if (res.result.existing) $('space-side').insertAdjacentHTML('afterbegin', '<p class="small muted">Already answered: this is the same signed answer as before.</p>');
+function renderRuns() {
+  const box = $('runs');
+  if (!S?.space) { if (box.innerHTML) { box.innerHTML = ''; box.dataset.html = ''; } return; }
+  if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;   // do not redraw under the cursor
+  const html = memo.runs.length ? memo.runs.map((run, i) => runCard(run, i === 0)).join('')
+    : '<p class="muted">No requests yet. ' + (isStarter() ? 'Press "+ New request" above.' : 'They show up here when ' + starterWindow() + ' makes one.') + '</p>';
+  if (box.dataset.html === html) return;   // nothing new: keep open folds and typed reasons
+  const typed = [...box.querySelectorAll('input[data-why]')].filter(i => i.value).map(i => [i.dataset.why, i.value]);
+  box.innerHTML = html; box.dataset.html = html;
+  for (const [k, v] of typed) { const i = box.querySelector('input[data-why="' + CSS.escape(k) + '"]'); if (i) i.value = v; }
+  box.querySelectorAll('details.run').forEach(d => { d.ontoggle = () => { memo.open[d.dataset.run] = d.open; }; });
+  box.querySelectorAll('[data-vote]').forEach(b => {
+    b.onclick = async () => {
+      const why = box.querySelector('input[data-why="' + CSS.escape(b.dataset.task + b.dataset.as) + '"]')?.value;
+      await act(b, 's6', 'I am voting ' + b.dataset.vote + ' as ' + b.dataset.as, 'POST', '/api/vote', { action:b.dataset.vote, as:b.dataset.as, taskId:b.dataset.task, why });
+      loadRuns();
+    };
+  });
+  box.querySelectorAll('[data-receipt]').forEach(b => { b.onclick = () => receipt(b, b.dataset.receipt); });
+}
+// The starter's demo app makes the receipt and the answer, and the requester checks the answer.
+// Anyone else checks the receipt on their own node.
+async function receipt(button, taskId) {
+  const run = memo.runs.find(r => r.taskId === taskId);
+  if (run) memo.open[run.runUri] = true;
+  if (isStarter()) {
+    let made = null;
+    if (!run?.responded) {
+      made = await act(button, 's6', 'I ask your node for the receipt, check it, then sign the answer with the trust-task key', 'POST', '/api/respond', { taskId });
+      if (!made.ok) { memo.receipts[taskId] = { error:made.error }; return loadRuns(); }
+    }
+    const res = await act(button, 's6', 'Requester: I check the answer against the request I sent', 'POST', '/api/verify', { taskId });
+    if (!res.ok) { memo.receipts[taskId] = { error:res.error }; return loadRuns(); }
+    memo.verified[taskId] = res.result.ok;
+    memo.receipts[taskId] = { response:res.result.response, verdict:made?.result.verdict, receiptUri:made?.result.receiptUri, verify:res.result };
+  } else {
+    const res = await act(button, 's6', 'I ask this node to check the receipt', 'POST', '/api/check-receipt', { taskId, as:role() === 'join-here' ? me() : undefined });
+    if (!res.ok) { memo.receipts[taskId] = { error:res.error }; return loadRuns(); }
+    memo.verified[taskId] = res.result.verdict.outcome === 'verified';
+    memo.receipts[taskId] = { response:res.result.answer, verdict:res.result.verdict };
+  }
   loadRuns();
-};
-$('btn-verify').onclick = async e => {
-  const res = await act(e.target, 's8', 'Requester: I check the answer against the request I sent', 'POST', '/api/verify', { taskId:taskNow() });
-  if (!res.ok) { $('req-side').innerHTML = '<p class="no-text">' + esc(res.error) + '</p>'; return; }
-  const r = res.result;
-  memo.verified[taskNow()] = r.ok;
-  $('req-side').innerHTML = '<p>' + (r.ok ? '<span class="ok-text">✓ The answer\'s signature, the receipt\'s hash and the link to my request check out.</span>' : '<span class="no-text">✗ The answer failed a check.</span>') + '</p>'
-    + '<ul class="checks">' + r.checks.map(c => '<li class="' + (c.ok ? '' : 'no') + '">' + esc(c.name) + '</li>').join('') + '</ul>'
-    + '<p>' + esc(r.limitation) + '.</p>'
-    + '<details><summary>The request it sent (JSON)</summary><pre class="json">' + esc(JSON.stringify(r.request, null, 2)) + '</pre></details>';
-  spaceSide(r.response, null);
-  linksBetween(r.request, r.response);
-  render();
-};
-$('btn-check-receipt').onclick = async e => {
-  const who = role() === 'join-here' ? me() : undefined;
-  const res = await act(e.target, 's8', 'I ask this node to check the receipt', 'POST', '/api/check-receipt', { taskId:taskNow(), as:who });
-  if (!res.ok) { $('space-side').innerHTML = '<p class="no-text">' + esc(res.error) + '</p>'; return; }
-  spaceSide(res.result.answer, res.result.verdict);
-  if (!S.space.owner || role() === 'join-here') memo.verified[taskNow()] = res.result.verdict.outcome === 'verified';
-  render();
-};
+}
+$('btn-runs').onclick = e => loadRuns(e.target);
 
 // ── The node panel: what the executor holds ─────────────────────────────────────
-const OPEN = { 1:['node'], 2:['node'], 3:['node', 'people'], 4:['apps'], 5:['space'], 6:['flow', 'space'], 7:['flow', 'space'], 8:['flow'] };
+const OPEN = { 1:['node'], 2:['node'], 3:['node', 'people'], 4:['apps'], 5:['space'], 6:['flow', 'space'] };
 const userOpen = {};
 function card(key, colour, sum, body, source) {
   const el = $('card-' + key);
@@ -657,9 +718,9 @@ function renderPanel() {
   const users = S.users ?? [];
   const mode = sp?.neighbourhood ? ((memo.members ?? []).some(m => !m.here) ? 'Shared with another node' : 'Shared space, nobody else in it yet') : (sp && Object.keys(sp.uuids).length > 1) || users.length ? 'One node, two people' : null;
   $('mode-badge').classList.toggle('hidden', !mode || !running); $('mode-badge').textContent = mode ?? '';
-  const agentName = Object.entries(S.people).find(([, p]) => p.login === 'agent')?.[0];
+  const agent = agentName();
   // Node
-  card('node', 'blue', running ? (a?.unlocked ? 'agent ' + esc(agentName ?? '') : a?.initialized ? 'agent locked' : 'no agent yet') : 'no node yet',
+  card('node', 'blue', running ? (a?.unlocked ? 'agent ' + esc(agent ?? '') : a?.initialized ? 'agent locked' : 'no agent yet') : 'no node yet',
     running ? '<div class="kv"><span>version</span><span>' + esc(S.info?.version ?? '…') + '</span>'
       + '<span>agent</span><span>' + (a?.did ? '<code>' + esc(short(a.did)) + '</code>' : a?.initialized ? 'locked' : 'not created yet') + '</span>'
       + '<span>keys</span><span>' + (a?.unlocked ? 'unlocked, inside the node' : a?.initialized ? 'locked (step 3)' : '—') + '</span></div>'
@@ -669,7 +730,7 @@ function renderPanel() {
   const sw = running && a?.unlocked && role() !== 'join-here' ? '<span class="switch" title="runtime.setMultiUserEnabled"><button data-mu="0" class="' + (mu ? '' : 'on') + '">off</button><button data-mu="1" class="' + (mu ? 'on' : '') + '">on</button></span>' : '';
   const stranded = Object.entries(S.people).filter(([, p]) => p.login === 'user').map(([nm]) => nm);
   card('people', 'blue', running ? 'multi-user ' + (mu === null ? '?' : mu ? 'on' : 'off') + sw : '',
-    running ? '<ul class="plist">' + (agentName ? '<li><span class="nm">' + esc(agentName) + '</span><code>' + esc(short(a?.did)) + '</code><span class="tag">the node\'s agent</span></li>' : '')
+    running ? '<ul class="plist">' + (agent ? '<li><span class="nm">' + esc(agent) + '</span><code>' + esc(short(a?.did)) + '</code><span class="tag">the node\'s agent</span></li>' : '')
       + users.map(u => '<li><span class="nm">' + esc(u.name ?? '?') + '</span><code>' + esc(short(u.did)) + '</code><span class="tag">' + (S.loggedIn.includes(u.name) ? 'logged in' : 'person on this node') + '</span></li>').join('') + '</ul>'
       + (!mu && stranded.length ? '<p class="small wait">Multi-user is off: nobody can log in as ' + stranded.map(esc).join(', ') + ' now.</p>' : '')
     : '', 'runtime.multiUserEnabled() · runtime.listUsers()');
@@ -685,13 +746,13 @@ function renderPanel() {
     sp ? '<p><b>IIW trust tasks</b> · ' + members.length + ' member' + (members.length === 1 ? '' : 's') + '</p><ul class="plist">'
       + members.map(m => '<li><span class="nm">' + esc(m.name ?? 'agent') + '</span><code>' + esc(short(m.did)) + '</code><span class="tag' + (m.here ? '' : ' mint') + '">' + (m.here ? 'member' : 'member, another node') + '</span></li>').join('') + '</ul>'
       + (sp.neighbourhood ? '<p class="small muted">' + esc(sp.neighbourhood.slice(0, 34)) + '…</p>' : '')
-    : '<p class="muted">No space yet (step 5).</p>', sp?.neighbourhood ? 'neighbourhood.otherAgents()' : 'perspective.byUUID()');
+    : '<p class="muted">No space yet (Space, at the top).</p>', sp?.neighbourhood ? 'neighbourhood.otherAgents()' : 'perspective.byUUID()');
   // Flow
   const run = memo.runs[0];
   const accepts = run ? new Set(run.votes.filter(v => v.toState === 'Accepted').map(v => v.voter)).size : 0;
   card('flow', 'mint', !sp ? '' : memo.installed ? (run ? 'run: ' + esc(run.state) : 'no run yet') : 'not installed',
     !sp ? '<p class="muted">Needs a space.</p>'
-    : '<p>Rules: ' + (memo.installed ? 'the stored request <code>IiwTrustTaskRequest</code> and the flow <code>TrustTaskDecision</code> <span class="ok-text">✓</span>' : '<span class="muted">not in the space yet (step 6)</span>') + '</p>'
+    : '<p>Rules: ' + (memo.installed ? 'the stored request <code>IiwTrustTaskRequest</code> and the flow <code>TrustTaskDecision</code> <span class="ok-text">✓</span>' : '<span class="muted">not in the space yet: "+ New request" installs it</span>') + '</p>'
       + (run ? '<p><b>Give Carol the role ' + esc(run.role) + '</b></p>'
         + '<div class="states"><span class="' + (run.state === 'Received' ? 'cur' : '') + '">Received</span><i>→</i><span class="' + (run.state === 'Accepted' ? 'cur' : '') + '">Accepted</span><span class="' + (run.state === 'Rejected' ? 'cur rej' : '') + '">Rejected</span></div>'
         + '<div class="votebar"><i style="width:' + Math.min(100, accepts * 50) + '%"></i></div><p class="small muted">' + accepts + ' of 2 votes to accept' + (run.votes.some(v => v.toState === 'Rejected') ? ' · a reject vote' : '') + '</p>'

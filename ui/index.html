@@ -18,7 +18,7 @@
       <span class="muted">IIW demo · Coasys</span>
     </div>
   </div>
-  <nav class="pills" id="pills" aria-label="Steps"></nav>
+  <nav class="pills" id="pills" aria-label="Parts of the demo"></nav>
   <nav class="links">
     <a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-1" target="_blank" rel="noopener">▶ Overview film <span class="len">4:09</span></a>
     <a href="https://coasys.org/ad4m" target="_blank" rel="noopener">What is AD4M?</a>
@@ -38,97 +38,107 @@
     <span class="light" id="client-light"><i></i><span>no node</span></span>
   </div>
 
-<!-- 1 -->
-<section class="step" id="s1" data-n="1">
-  <h2><span class="n">1</span> Who are you in this demo?</h2>
-  <p id="s1-intro">The flow needs two people to accept a request. Either two people use one AD4M node, or each brings their own. Pick your part.</p>
-  <div class="learn-row"><a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-1" target="_blank" rel="noopener">▶ Watch the overview <span class="len">4:09</span></a> <span class="small muted">New to AD4M? The first film explains agents, languages and perspectives.</span></div>
+<button class="bar hidden" id="bar-setup" type="button"><span class="bar-mark">✓</span><b>Setup</b><span class="bar-sum" id="bar-setup-sum"></span><span class="bar-open">Open ▸</span></button>
+
+<!-- Setup 1 -->
+<section class="step" id="s1" data-n="1" data-group="setup">
+  <h2><span class="n">1</span> <span class="t">Who are you in this demo?</span><span class="sum"></span><a class="lbtn film" href="https://coasys.org/ad4m#film-ad4m-1" target="_blank" rel="noopener">▶ Overview <span class="len">4:09</span></a></h2>
+  <p class="lede" id="s1-intro">Pick your part. A request needs two people to accept it.</p>
   <div class="fork" id="fork">
-    <button class="fork-card" data-role="host"><b>I'm starting the demo</b><span>I run the AD4M node, make the space and receive the trust task.</span></button>
+    <button class="fork-card" data-role="host"><b>I'm starting the demo</b><span>I run the AD4M node, make the space and take in the requests.</span></button>
     <button class="fork-card" id="fork-join"><b>I'm joining someone</b><span>Someone else started the demo. I am the second voter.</span></button>
   </div>
   <div class="fork sub-fork hidden" id="fork-join-how">
     <button class="fork-card" data-role="join-here"><b>On this computer</b><span>The demo already runs here. I become a second person on its node.</span></button>
-    <button class="fork-card" data-role="join-own"><b>With my own node</b><span>I download AD4M and start my own node, then join the space by its address.</span></button>
-    <p class="small muted">Using the other person's node over the network is not part of this demo. Their node would have to accept connections from the network, with passwords sent unencrypted.</p>
+    <button class="fork-card" data-role="join-own"><b>With my own node</b><span>I download AD4M, start my own node and join the space by its address.</span></button>
   </div>
   <p class="role-line hidden" id="role-line"></p>
 
   <div id="exe-part" class="hidden">
-    <h3>Get the executor</h3>
-    <p>The AD4M executor is the program that runs your node. It holds your keys, stores your data as signed links, and runs flows. It is one file. The page needs to know where it is.</p>
-    <div id="release" class="box muted">Looking up the release…</div>
+    <p class="lede">Get the AD4M executor, the one program that runs your node.</p>
+    <div id="release" class="box muted small">Looking up the release…</div>
     <div class="row">
       <button id="btn-download" disabled>Download it into this folder</button>
       <span id="download-progress" class="muted"></span>
     </div>
-    <p class="small muted">Or use a file you already have (a download, or one you built from source as in the README):</p>
-    <div class="row">
-      <input id="exe-path" placeholder="/full/path/to/ad4m-executor" size="40" aria-label="Path to the executor">
-      <button id="btn-use" class="secondary">Use this file</button>
-    </div>
+    <details class="alt"><summary>Use a file I already have</summary>
+      <p class="small muted">A download, or one you built from source as in the README:</p>
+      <div class="row">
+        <input id="exe-path" placeholder="/full/path/to/ad4m-executor" size="40" aria-label="Path to the executor">
+        <button id="btn-use" class="secondary">Use this file</button>
+      </div>
+    </details>
     <div id="exe-status" class="status"></div>
   </div>
 
   <div id="here-part" class="hidden">
-    <h3>Become a person on this node</h3>
-    <p>One AD4M node can hold several people (multi-user mode). Each gets their own DID and keys and signs their own votes. The page adds you, makes a random password for you, keeps it on this computer and logs you in.</p>
+    <p class="lede">Become a second person on the node that runs here, with your own key.</p>
     <div id="here-node" class="status"></div>
     <div class="row">
       <label>Your name <input id="here-name" value="dana" size="12"></label>
       <button id="btn-here">Add me and log me in</button>
     </div>
     <div id="here-status" class="status"></div>
-    <div id="here-space" class="status"></div>
   </div>
+  <details class="why"><summary>What happens here</summary>
+    <p>The flow needs two people to accept a request. Either two people use one AD4M node, or each brings their own.</p>
+    <p>The AD4M executor is the program that runs your node. It holds your keys, stores your data as signed links, and runs flows. It is one file. The page needs to know where it is.</p>
+    <p>One AD4M node can hold several people (multi-user mode). Each gets their own DID and keys and signs their own votes. Joining on this computer, the page adds you, makes a random password for you, keeps it on this computer and logs you in.</p>
+    <p>Using the other person's node over the network is not part of this demo. Their node would have to accept connections from the network, with passwords sent unencrypted.</p>
+  </details>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s1"></div></details>
 </section>
 
-<!-- 2 -->
-<section class="step" id="s2" data-n="2">
-  <h2><span class="n">2</span> Start the node</h2>
-  <p>Your node is the executor running with its own data folder (<code>.node/</code>). The page starts it the way <code>start-node.sh</code> does. The first start creates the folder and a random admin credential: whoever has that file controls the node. This page's server reads it and never shows it.</p>
+<!-- Setup 2 -->
+<section class="step" id="s2" data-n="2" data-group="setup">
+  <h2><span class="n">2</span> <span class="t">Start the node</span><span class="sum"></span></h2>
+  <p class="lede">Start your node: the executor, with its own data folder <code>.node/</code>.</p>
   <div class="row">
-    <label>API port <input id="port" type="number" min="1024" max="65000" value="12100" style="width:7em"></label>
     <button id="btn-start">Start the node</button>
-    <button id="btn-stop" class="secondary">Stop the node</button>
-    <button id="btn-reset" class="danger">Start over…</button>
+    <button id="btn-stop" class="secondary small">Stop it</button>
+    <button id="btn-reset" class="danger small">Start over…</button>
+    <label class="small">Port <input id="port" type="number" min="1024" max="65000" value="12100" style="width:6.5em"></label>
   </div>
   <div id="node-status" class="status"></div>
-  <p class="small muted">Watch the AD4M logo in the node panel: grey while the node is stopped, blue once it answers. Its log is at the bottom of that panel.</p>
+  <details class="why"><summary>What happens here</summary>
+    <p>The page starts the executor the way <code>start-node.sh</code> does. The first start creates the folder and a random admin credential: whoever has that file controls the node. This page's server reads it and never shows it.</p>
+    <p>Watch the AD4M logo in the node panel: grey while the node is stopped, blue once it answers. Its log is at the bottom of that panel.</p>
+    <p>"Start over" stops the node and deletes its data and this page's state, so you can begin again with a new agent.</p>
+  </details>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s2"></div></details>
 </section>
 
-<!-- 3 -->
-<section class="step" id="s3" data-n="3">
-  <h2><span class="n">3</span> The node's agent, and people on it</h2>
-  <p>An AD4M agent is a key pair and a <code>did:key</code>. Everything the agent writes is signed with that key. A new node has no agent yet: you create one and protect it with a passphrase. After every restart the agent is locked, and you unlock it with the same passphrase.</p>
-  <div class="learn-row"><a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-3" target="_blank" rel="noopener">▶ Film: Your identity, what comes next <span class="len">2:25</span></a> <a class="lbtn doc" href="https://docs.ad4m.dev/agents" target="_blank" rel="noopener">Read: Agents in the docs</a></div>
-  <div class="id-note">
-    <p><b>Identity today and next.</b> The agents in this demo use <code>did:key</code>, which is what AD4M v0.13.1 ships. Next comes <code>did:scid:coasys:1</code>: your DID is the fingerprint of the first event in a signed key log, so it stays the same while you rotate the master key and add or revoke devices. The master key comes from 12 words. The film above shows this.</p>
-    <p>It uses KERI's rules (a current key and a committed next key, so the current key alone cannot rotate) in the encoding the web already reads, as did:webvh does (JCS, SHA-256 multihash, multikeys, Data Integrity proofs). Unlike KERI it has no witnesses and no consensus: any host can serve a log, and anyone can check it without trusting that host. Unlike did:webvh, a device key joins by an offer and a claim, and only the 12 words hold the next master key.</p>
-    <p class="small muted">In review as coasys/ad4m #1539–#1542, not in v0.13.1. <a href="https://github.com/coasys/ad4m/blob/identity/core/docs-src/identity/did-scid-coasys-1.md" target="_blank" rel="noopener">Read the spec</a> · <a href="https://github.com/coasys/ad4m/pull/1539" target="_blank" rel="noopener">PR #1539</a></p>
-  </div>
+<!-- Setup 3 -->
+<section class="step" id="s3" data-n="3" data-group="setup">
+  <h2><span class="n">3</span> <span class="t">Your agent, and a second person</span><span class="sum"></span><a class="lbtn film" href="https://coasys.org/ad4m#film-ad4m-3" target="_blank" rel="noopener">▶ Your identity <span class="len">2:25</span></a></h2>
+  <p class="lede">Create your node's agent: a key pair and a <code>did:key</code>, locked with a passphrase.</p>
   <div id="agent-box"></div>
   <div id="users-box" class="sub">
-    <h3>A second person on this node</h3>
-    <p>With multi-user mode on, one node holds several people, each with their own DID and keys and a login. Adding a person turns multi-user mode on (see the People card in the node panel). The page makes a random throwaway password for each and keeps it in <code>.demo/people.json</code>.</p>
-    <p class="small muted" id="users-hint"></p>
+    <p class="lede">Add a second person to this node, so two people can vote here.</p>
     <div class="row">
       <input id="user-name" placeholder="dana" size="14" aria-label="Name of the new person">
       <button id="btn-user-add" class="secondary">Add this person</button>
     </div>
     <div id="users-list"></div>
   </div>
+  <details class="id-note"><summary>Identity today and next</summary>
+    <p><b>Identity today and next.</b> The agents in this demo use <code>did:key</code>, which is what AD4M v0.13.1 ships. Next comes <code>did:scid:coasys:1</code>: your DID is the fingerprint of the first event in a signed key log, so it stays the same while you rotate the master key and add or revoke devices. The master key comes from 12 words. The film above shows this.</p>
+    <p>It uses KERI's rules (a current key and a committed next key, so the current key alone cannot rotate) in the encoding the web already reads, as did:webvh does (JCS, SHA-256 multihash, multikeys, Data Integrity proofs). Unlike KERI it has no witnesses and no consensus: any host can serve a log, and anyone can check it without trusting that host. Unlike did:webvh, a device key joins by an offer and a claim, and only the 12 words hold the next master key.</p>
+    <p class="small muted">In review as coasys/ad4m #1539–#1542, not in v0.13.1. <a href="https://github.com/coasys/ad4m/blob/identity/core/docs-src/identity/did-scid-coasys-1.md" target="_blank" rel="noopener">Read the spec</a> · <a href="https://github.com/coasys/ad4m/pull/1539" target="_blank" rel="noopener">PR #1539</a></p>
+  </details>
+  <details class="why"><summary>What happens here</summary>
+    <p>An AD4M agent is a key pair and a <code>did:key</code>. Everything the agent writes is signed with that key. A new node has no agent yet: you create one and protect it with a passphrase. After every restart the agent is locked, and you unlock it with the same passphrase.</p>
+    <p>With multi-user mode on, one node holds several people, each with their own DID and keys and a login. Adding a person turns multi-user mode on (see the People card in the node panel). The page makes a random throwaway password for each and keeps it in <code>.demo/people.json</code>.</p>
+    <p id="users-hint"></p>
+    <p><a class="lbtn doc" href="https://docs.ad4m.dev/agents" target="_blank" rel="noopener">Read: Agents in the docs</a></p>
+  </details>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s3"></div></details>
 </section>
 
-<!-- 4 -->
-<section class="step" id="s4" data-n="4">
-  <h2><span class="n">4</span> Connect this page to your agent</h2>
-  <p>An ordinary app never gets your keys or the admin credential. It asks the node for a <b>capability</b>: the right to act as your agent. The node shows the person at the node a one-time 6-digit code, and they type it into the app. Only then does the app get a token. That way a web page can ask, but only the person at the node can say yes.</p>
-  <p class="small muted">This demo is a special case. Its server started your node, so it holds the admin credential. A bare executor approves the request by itself and writes the code to its log (that is what <code>AD4M_LOG_SECRETS=1</code> does); the page reads the log and shows you the line. The calls are the same ones any app makes. In the ADAM launcher the code shows up in a window instead.</p>
-  <div class="learn-row"><a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-6" target="_blank" rel="noopener">▶ Film: Build an app <span class="len">3:51</span></a> <a class="lbtn doc" href="https://docs.ad4m.dev/auth" target="_blank" rel="noopener">Read: Capabilities in the docs</a></div>
+<!-- Setup 4 -->
+<section class="step" id="s4" data-n="4" data-group="setup">
+  <h2><span class="n">4</span> <span class="t">Connect this page to your agent</span><span class="sum"></span><a class="lbtn film" href="https://coasys.org/ad4m#film-ad4m-6" target="_blank" rel="noopener">▶ Build an app <span class="len">3:51</span></a></h2>
+  <p class="lede">Ask the node for access. It writes a 6-digit code to its log, and you type it here.</p>
   <ol class="hs" id="hs-steps">
     <li data-k="ask">The app asks</li>
     <li data-k="code">The node writes a code to its log</li>
@@ -142,25 +152,30 @@
     <button id="btn-hs-redeem">Send the code</button>
   </div>
   <div id="hs-status" class="status"></div>
+  <details class="why"><summary>What happens here</summary>
+    <p>An ordinary app never gets your keys or the admin credential. It asks the node for a <b>capability</b>: the right to act as your agent. The node shows the person at the node a one-time 6-digit code, and they type it into the app. Only then does the app get a token. That way a web page can ask, but only the person at the node can say yes.</p>
+    <p>This demo is a special case. Its server started your node, so it holds the admin credential. A bare executor approves the request by itself and writes the code to its log (that is what <code>AD4M_LOG_SECRETS=1</code> does); the page reads the log and shows you the line. The calls are the same ones any app makes. In the ADAM launcher the code shows up in a window instead.</p>
+    <p><a class="lbtn doc" href="https://docs.ad4m.dev/auth" target="_blank" rel="noopener">Read: Capabilities in the docs</a></p>
+  </details>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s4"></div></details>
 </section>
 
-<!-- 5 -->
-<section class="step" id="s5" data-n="5">
-  <h2><span class="n">5</span> <span id="s5-title">Make a space</span></h2>
-  <p>A space (AD4M calls it a perspective) is a graph of signed links. The trust tasks, the flow and the votes all go in it. A local space stays on this node. A <b>neighbourhood</b> is a shared space: other nodes join it by its URL, and AD4M syncs the links between them.</p>
-  <div class="learn-row"><a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-4" target="_blank" rel="noopener">▶ Film: The coherence part <span class="len">3:13</span></a> <a class="lbtn doc" href="https://docs.ad4m.dev/neighbourhoods" target="_blank" rel="noopener">Read: Neighbourhoods in the docs</a></div>
+<!-- Space -->
+<section class="step" id="s5" data-n="5" data-group="space">
+  <h2><span class="n">◇</span> <span class="t" id="s5-title">Make a space</span><span class="sum"></span><a class="lbtn film" href="https://coasys.org/ad4m#film-ad4m-4" target="_blank" rel="noopener">▶ The coherence part <span class="len">3:13</span></a></h2>
+  <p class="lede" id="s5-lede">Make the space that holds the requests, the flow and the votes.</p>
   <div id="space-current" class="status"></div>
+  <div id="here-space" class="status hidden"></div>
   <div class="cols" id="space-choices">
     <div class="choice" data-for="host">
       <h3>Local space</h3>
-      <p>Only this node. Needs no network. Two people on this node can vote in it: a person added in step 3 owns it, and the node's agent is in it too.</p>
+      <p>Only this node. Two people on this node can vote in it.</p>
       <label class="small">Owner <select class="owner-select" id="local-owner"></select></label>
       <button id="btn-space-local" class="secondary">Make a local space</button>
     </div>
     <div class="choice" data-for="host">
       <h3>Shared space</h3>
-      <p>Make the space and publish it as a neighbourhood, so a second node can join. A link language moves the links between nodes. Pick one:</p>
+      <p>A neighbourhood: a second node can join it.</p>
       <div id="templates" class="small muted">Connect first (step 4) to list them.</div>
       <label class="small">Link server <input id="server-url" value="https://link.ad4m.dev" size="22"></label>
       <label class="small">Owner <select class="owner-select" id="share-owner"></select></label>
@@ -168,100 +183,53 @@
     </div>
     <div class="choice" data-for="join">
       <h3>Join the shared space</h3>
-      <p>The person who started the demo sends you a <code>neighbourhood://…</code> address. Paste it here. The flow comes in with the space's links; that takes a few seconds with the link server.</p>
+      <p>Paste the <code>neighbourhood://…</code> address the starter sends you.</p>
       <input id="join-url" placeholder="neighbourhood://Qm…" aria-label="Neighbourhood URL">
       <label class="small">Join as <select class="person-select" id="join-as"></select></label>
       <button id="btn-space-join">Join</button>
     </div>
   </div>
+  <details class="why"><summary>What happens here</summary>
+    <p>A space (AD4M calls it a perspective) is a graph of signed links. The trust tasks, the flow and the votes all go in it. A local space stays on this node. A <b>neighbourhood</b> is a shared space: other nodes join it by its URL, and AD4M syncs the links between them.</p>
+    <p>A local space needs no network. A person added in step 3 owns it, and the node's agent is in it too. A shared space uses a link language to move the links between nodes. Joining one, the flow comes in with the space's links; that takes a few seconds with the link server.</p>
+    <p><a class="lbtn doc" href="https://docs.ad4m.dev/neighbourhoods" target="_blank" rel="noopener">Read: Neighbourhoods in the docs</a></p>
+  </details>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s5"></div></details>
 </section>
 
-<!-- 6 -->
-<section class="step" id="s6" data-n="6">
-  <h2><span class="n">6</span> A trust task arrives</h2>
-  <p>A requester sends a signed trust task to this demo app: "give Carol the role <code>member</code>". The app checks it with ToIP's code. If it passes, the app stores it in your space and AD4M starts a run of the flow, a small state machine. Two votes accept the request. One vote rejects it.</p>
-  <div class="learn-box">
-    <p><b>This is where the flow starts.</b> The flows film follows a task from state to state. Each vote is a signed link, each step says how many votes it needs, and nobody writes the state down: every node works it out from the votes it holds. At the end, a receipt collects the evidence. Steps 6, 7 and 8 use all of this.</p>
-    <div class="learn-row"><a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">▶ Film: Flows, how a group decides <span class="len">3:52</span></a> <a class="lbtn doc" href="https://docs.ad4m.dev/flows" target="_blank" rel="noopener">Read: Flows in the docs</a></div>
-  </div>
-
-  <div class="reqcard">
-    <p class="who req">Requester · outside your group</p>
-    <p>It has its own <code>did:key</code> and signs the task with it (<code>eddsa-jcs-2022</code>). In this demo the page plays the requester too. It sends the task to this demo app, never to the AD4M node.</p>
+<!-- Decide -->
+<section class="step" id="s6" data-n="6" data-group="decide">
+  <h2><span class="n">◆</span> <span class="t">Decide</span><span class="sum"></span><a class="lbtn film" href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">▶ Flows, how a group decides <span class="len">3:52</span></a></h2>
+  <p class="lede">A requester asks your group to give Carol the role <code>member</code>. Two accepts approve it; one reject turns it down.</p>
+  <div id="new-part">
     <div class="row">
-      <button id="btn-req-new" class="req">Requester: sign a trust task</button>
-      <button id="btn-req-tamper" class="req secondary">Sign one, then change it</button>
+      <button id="btn-new" class="req">+ New request</button>
+      <button id="btn-req-tamper" class="req secondary small">Sign one, then change it</button>
     </div>
-    <details class="taskjson"><summary>The trust task (JSON)</summary><pre id="task-json" class="json small"></pre></details>
-    <p class="nownext"><b>Now</b> a JSON file on disk. <b>Could later</b> HTTPS, DIDComm or TSP. None of these is built.</p>
+    <div class="inapp hidden" id="inapp-checks">
+      <p class="who">This demo app checks it, not the node: <code>consumeInbound(request)</code></p>
+      <div class="badges" id="check-badges"><span>proof</span><span>recipient</span><span>schema</span><span>fresh</span><span>not a duplicate</span></div>
+    </div>
+    <div id="receive-status" class="status"></div>
   </div>
-
-  <ol class="seq">
-    <li>
-      <p><b>Install the flow in the space.</b> The class that stores the request and the flow are links in the space too (AD4M calls this social DNA), so every member's node has the same rules. A new space has none yet.</p>
-      <div class="row">
-        <button id="btn-flow-install">Install the flow in the space</button>
-        <button id="btn-flow-check" class="secondary">Check</button>
-      </div>
-      <div id="flow-status" class="status"></div>
-    </li>
-    <li id="arrive-take">
-      <p><b>Check the task and start the flow.</b> This demo app (<code>demo.mjs</code>, not the AD4M node) checks the task with ToIP's own code (<code>consumeInbound</code>). Only then does it write the JSON byte for byte into the space through the SDK, and AD4M starts a run of the flow.</p>
-      <div class="row">
-        <button id="btn-req-receive">Check it and start the flow</button>
-      </div>
-      <div class="inapp" id="inapp-checks">
-        <p class="who">In this demo app, not in the node</p>
-        <code>consumeInbound(request)</code>
-        <div class="badges" id="check-badges"><span>proof</span><span>recipient</span><span>schema</span><span>fresh</span><span>not a duplicate</span></div>
-      </div>
-      <div id="receive-status" class="status"></div>
-    </li>
-    <li id="arrive-joined" class="hidden">
-      <p>This space was joined here. Trust tasks go to the demo app of the person who made the space: it checks them, then stores them in the space on their node. The runs sync here and show up in step 7.</p>
-    </li>
-  </ol>
-  <details class="mapping"><summary>The flow, and what each part of the trust task becomes in AD4M</summary>
-    <div class="diagram" data-diagram></div>
-    <table id="mapping"></table>
+  <p class="elsewhere hidden" id="new-elsewhere"></p>
+  <div id="flow-status" class="status"></div>
+  <div id="runs"></div>
+  <p class="small muted"><button id="btn-runs" class="secondary small">Refresh</button> <span id="runs-note"></span></p>
+  <details class="why"><summary>What happens here</summary>
+    <p>"+ New request" does three things. The requester, played by this page, signs a trust task with its own <code>did:key</code> (<code>eddsa-jcs-2022</code>) and sends it to this demo app, never to the AD4M node. This demo app (<code>demo.mjs</code>) checks it with ToIP's own code (<code>consumeInbound</code>). Only then does it write the JSON byte for byte into the space through the SDK, and AD4M starts a run of the flow, a small state machine. The first time, it also installs the flow in the space: the class that stores the request and the flow are links in the space too (AD4M calls this social DNA), so every member's node has the same rules.</p>
+    <p>"Sign one, then change it" changes the role after signing. The check fails, and nothing reaches the node.</p>
+    <p>Each vote is a signed link. Nobody sets the state directly: each node works it out from the signed votes it holds. When a run has ended, this demo app asks AD4M for a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. This demo app wraps it into a trust-task answer signed with its own key, and the requester checks the answer against the request it sent. Any member's node can check the receipt too.</p>
+    <p class="nownext"><b>Now</b> the trust task travels as a JSON file on disk, and this demo app signs the answer with the space's trust-task key, a key of its own. The node can sign a plain string with the agent's key but makes no Data Integrity proof. <b>Could later</b> HTTPS, DIDComm or TSP, and the node signs the answer itself. None of these is built.</p>
+    <p>Accepting records the decision in the space. No permission changes anywhere.</p>
+    <details class="taskjson"><summary>The last trust task (JSON)</summary><pre id="task-json" class="json small"></pre></details>
+    <details class="mapping"><summary>The flow, and what each part of the trust task becomes in AD4M</summary>
+      <div class="diagram" data-diagram></div>
+      <table id="mapping"></table>
+    </details>
+    <p><a class="lbtn doc" href="https://docs.ad4m.dev/flows" target="_blank" rel="noopener">Read: Flows in the docs</a></p>
   </details>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s6"></div></details>
-</section>
-
-<!-- 7 -->
-<section class="step" id="s7" data-n="7">
-  <h2><span class="n">7</span> Vote</h2>
-  <p>Each received task has its own run of the flow. Every person in the space votes with their own key; AD4M signs each vote as a link. Nobody sets the state directly: each node works it out from the signed votes it holds.</p>
-  <p class="film-tip"><a href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">▶ Film: Flows, how a group decides</a> <span class="muted">(3:52)</span> · <a href="https://docs.ad4m.dev/flows" target="_blank" rel="noopener">Flows in the docs</a></p>
-  <div class="row"><button id="btn-runs" class="secondary">Refresh</button> <span class="muted small" id="runs-note"></span></div>
-  <div id="runs"></div>
-  <details class="result"><summary>What came back</summary><div class="trace" data-for="s7"></div></details>
-</section>
-
-<!-- 8 -->
-<section class="step" id="s8" data-n="8">
-  <h2><span class="n">8</span> The receipt, the answer, and the requester's check</h2>
-  <p id="s8-intro">When a run has ended, this demo app asks AD4M to make a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. This demo app wraps it into a trust-task answer signed with its own key, and the requester checks the answer against the request it sent.</p>
-  <p class="film-tip"><a href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">▶ Film: Flows, how a group decides</a> <span class="muted">(3:52)</span> · <a href="https://docs.ad4m.dev/flows" target="_blank" rel="noopener">Flows in the docs</a></p>
-  <div class="row"><label>Task <select id="answer-task"></select></label></div>
-  <div class="panel">
-    <p class="who">This demo app asks the node</p>
-    <div class="row">
-      <button id="btn-respond">Make the receipt and the answer</button>
-      <button id="btn-check-receipt" class="secondary">Check the receipt on this node</button>
-    </div>
-    <div id="space-side"></div>
-    <p class="nownext" id="s8-now"><b>Now</b> this demo app signs the answer with the space's trust-task key, a key of its own. The node can sign a plain string with the agent's key but makes no Data Integrity proof. <b>Could later</b> the node signs the answer itself. Not built.</p>
-  </div>
-  <div class="reqcard">
-    <p class="who req">Requester · outside your group</p>
-    <button id="btn-verify" class="req">Requester: check the answer</button>
-    <div id="req-side"></div>
-  </div>
-  <div id="links-between"></div>
-  <p class="small muted">Accepting records the decision in the space. No permission changes anywhere.</p>
-  <details class="result"><summary>What came back</summary><div class="trace" data-for="s8"></div></details>
 </section>
 
   <div class="stepnav">
