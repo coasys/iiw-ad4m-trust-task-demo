@@ -101,6 +101,7 @@
 <section class="step" id="s3" data-n="3">
   <h2><span class="n">3</span> The node's agent, and people on it</h2>
   <p>An AD4M agent is a key pair and a <code>did:key</code>. Everything the agent writes is signed with that key. A new node has no agent yet: you create one and protect it with a passphrase. After every restart the agent is locked, and you unlock it with the same passphrase.</p>
+  <p class="film-tip"><a href="https://coasys.org/ad4m#film-ad4m-3" target="_blank" rel="noopener">▶ Film 3: Your identity</a> <span class="muted">(2:25)</span></p>
   <div id="agent-box"></div>
   <div id="users-box" class="sub">
     <h3>A second person on this node</h3>
@@ -171,6 +172,7 @@
 <section class="step" id="s6" data-n="6">
   <h2><span class="n">6</span> A trust task arrives</h2>
   <p>A requester sends a signed trust task to this demo app: "give Carol the role <code>member</code>". The app checks it with ToIP's code. If it passes, the app stores it in your space and AD4M starts a run of the flow, a small state machine. Two votes accept the request. One vote rejects it.</p>
+  <p class="film-tip"><a href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">▶ Film 7: Flows: how a group decides</a> <span class="muted">(3:52)</span></p>
 
   <div class="reqcard">
     <p class="who req">Requester · outside your group</p>
@@ -219,6 +221,7 @@
 <section class="step" id="s7" data-n="7">
   <h2><span class="n">7</span> Vote</h2>
   <p>Each received task has its own run of the flow. Every person in the space votes with their own key; AD4M signs each vote as a link. Nobody sets the state directly: each node works it out from the signed votes it holds.</p>
+  <p class="film-tip"><a href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">▶ Film 7: Flows: how a group decides</a> <span class="muted">(3:52)</span></p>
   <div class="row"><button id="btn-runs" class="secondary">Refresh</button> <span class="muted small" id="runs-note"></span></div>
   <div id="runs"></div>
   <details class="result"><summary>What came back</summary><div class="trace" data-for="s7"></div></details>
@@ -228,6 +231,7 @@
 <section class="step" id="s8" data-n="8">
   <h2><span class="n">8</span> The receipt, the answer, and the requester's check</h2>
   <p id="s8-intro">When a run has ended, this demo app asks AD4M to make a <b>flow receipt</b>: the signed votes, the final state and the exact request the group decided on. Its address is the SHA-256 of its content, so nobody can change it unnoticed. This demo app wraps it into a trust-task answer signed with its own key, and the requester checks the answer against the request it sent.</p>
+  <p class="film-tip"><a href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">▶ Film 7: Flows: how a group decides</a> <span class="muted">(3:52)</span></p>
   <div class="row"><label>Task <select id="answer-task"></select></label></div>
   <div class="panel">
     <p class="who">This demo app asks the node</p>
@@ -252,6 +256,18 @@
     <button id="btn-back" class="secondary">← Back</button>
     <button id="btn-next">Next →</button>
   </div>
+  <footer class="films" aria-label="Films about AD4M">
+    <p class="films-head">Watch the films about AD4M</p>
+    <ol>
+      <li><a href="https://coasys.org/ad4m#film-ad4m-1" target="_blank" rel="noopener">1. The meta-ontology: an overview</a> <span class="muted">3:27</span></li>
+      <li><a href="https://coasys.org/ad4m#film-ad4m-2" target="_blank" rel="noopener">2. The sovereign part</a> <span class="muted">3:28</span></li>
+      <li><a href="https://coasys.org/ad4m#film-ad4m-3" target="_blank" rel="noopener">3. Your identity</a> <span class="muted">2:25</span></li>
+      <li><a href="https://coasys.org/ad4m#film-ad4m-4" target="_blank" rel="noopener">4. The coherence part</a> <span class="muted">3:13</span></li>
+      <li><a href="https://coasys.org/ad4m#film-ad4m-5" target="_blank" rel="noopener">5. Build a language</a> <span class="muted">3:48</span></li>
+      <li><a href="https://coasys.org/ad4m#film-ad4m-6" target="_blank" rel="noopener">6. Build an app</a> <span class="muted">3:51</span></li>
+      <li><a href="https://coasys.org/ad4m#film-ad4m-7" target="_blank" rel="noopener">7. Flows: how a group decides</a> <span class="muted">3:52</span></li>
+    </ol>
+  </footer>
 </main>
 
 <!-- ── Middle: the calls between the app and the node ──────────────────────── -->

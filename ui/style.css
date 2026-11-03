@@ -304,3 +304,9 @@ details.mapping { margin:12px 0; }
   .match { grid-template-columns:1fr; }
 }
 @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } .wrow { opacity:1; } }
+.film-tip { margin:-2px 0 12px; font-size:12.5px; }
+.film-tip a { color:var(--text2); }
+.films { margin-top:28px; padding-top:12px; border-top:1px solid var(--line); font-size:12.5px; color:var(--text3); }
+.films-head { margin:0 0 6px; }
+.films ol { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:4px 16px; }
+.films a { color:var(--text2); }
