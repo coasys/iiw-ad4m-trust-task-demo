@@ -654,7 +654,8 @@ function renderRuns() {
   const typed = [...box.querySelectorAll('input[data-why]')].filter(i => i.value).map(i => [i.dataset.why, i.value]);
   box.innerHTML = html; box.dataset.html = html;
   for (const [k, v] of typed) { const i = box.querySelector('input[data-why="' + CSS.escape(k) + '"]'); if (i) i.value = v; }
-  box.querySelectorAll('details.run').forEach(d => { d.ontoggle = () => { memo.open[d.dataset.run] = d.open; }; });
+  // Only a click counts: a card drawn open (the newest one) fires 'toggle' too, and must fold when a newer run comes.
+  box.querySelectorAll('details.run > summary').forEach(s => { s.onclick = () => { memo.open[s.parentElement.dataset.run] = !s.parentElement.open; }; });
   box.querySelectorAll('[data-vote]').forEach(b => {
     b.onclick = async () => {
       const why = box.querySelector('input[data-why="' + CSS.escape(b.dataset.task + b.dataset.as) + '"]')?.value;
