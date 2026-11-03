@@ -98,10 +98,11 @@ Some details:
 
 ### The films about AD4M
 
-Seven short films explain AD4M. Film 3 goes with step 3 (the agent), film 7 with steps 6 to 8 (the
-flow, the votes and the receipt). The page links to them too.
+Seven short films explain AD4M. The page has a button for a film and its docs page at the step it explains:
+film 1 at the top and in step 1, film 3 in step 3 (the agent), film 6 in step 4 (an app asks your node for
+access), film 4 in step 5 (the shared space) and film 7 in step 6 (the flow, the votes and the receipt).
 
-1. [The meta-ontology: an overview](https://coasys.org/ad4m#film-ad4m-1) (3:27)
+1. [The meta-ontology: an overview](https://coasys.org/ad4m#film-ad4m-1) (4:09)
 2. [The sovereign part](https://coasys.org/ad4m#film-ad4m-2) (3:28)
 3. [Your identity](https://coasys.org/ad4m#film-ad4m-3) (2:25)
 4. [The coherence part](https://coasys.org/ad4m#film-ad4m-4) (3:13)
@@ -109,7 +110,7 @@ flow, the votes and the receipt). The page links to them too.
 6. [Build an app](https://coasys.org/ad4m#film-ad4m-6) (3:51)
 7. [Flows: how a group decides](https://coasys.org/ad4m#film-ad4m-7) (3:52)
 
-The films are on <https://coasys.org/ad4m>, which is not online yet. The links work once it is.
+All seven are on <https://coasys.org/ad4m>.
 
 ## The same with the command line
 
