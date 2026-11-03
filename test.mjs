@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { FlowInstance, PerspectiveProxy, AgentClient } from '@coasys/ad4m';
 import { signTrustTask } from '@openvtc/trust-tasks-proof';
 import { TYPE_URI, RESPONSE_TYPE_URI } from '@openvtc/trust-tasks/acl/grant/0.2/payload';
 import { request, verify } from './requester.mjs';
 import { agent, addUsers, makeSpace, openAs, receive, vote, respond, RequestModel, ResponseModel, runOn } from './demo.mjs';
 import { ROOT, STATE, NS, uuid, shortId, loadOrCreateKey, sign, verifyProof, receiptSha256,
-  checkReceiptHash, saveJson, readJson, TRUST_TASK_ERROR_TYPE_URI } from './common.mjs';
+  checkReceiptHash, saveJson, readJson, TRUST_TASK_ERROR_TYPE_URI, backgroundCache } from './common.mjs';
 
 // npm test runs in its own state folder (DEMO_STATE=.demo-test): your space in .demo/ is left alone.
 const tutorialFiles = ['space.json', 'people.json', 'latest-task.txt'].map(name => resolve(ROOT, '.demo', name));
@@ -422,4 +423,35 @@ await test('agent --as refuses a user\'s name and a rename under an existing spa
   await assert.rejects(agent({ as:alice, noPrompt:true }), /is a user on this node/);
   await assert.rejects(agent({ as:'someone-else', noPrompt:true }), /knows this node's agent as bob/);
   assert.deepEqual(readJson(resolve(STATE, 'people.json')), people);
+});
+
+await test('the page\'s member list: /api/runs never waits for the link language, and asks it at most once a minute', async () => {
+  let clock = 0, calls = 0, answer = ['did:key:a'];
+  const never = new Promise(() => {});
+  let hang = true;
+  const cache = backgroundCache(async () => { calls++; if (hang) return never; return answer; }, { ttl:60000, timeout:50, now:() => clock });
+  // A dead link server: the first ask never answers. get() still returns at once, with the fallback.
+  const started = Date.now();
+  assert.deepEqual(cache.get('nh-1', []), []);
+  assert(Date.now() - started < 20);
+  // The page polls every 4 s: no second ask while one is out or within the minute.
+  for (let i = 0; i < 10; i++) { clock += 4000; assert.deepEqual(cache.get('nh-1', []), []); await delay(1); }
+  assert.equal(calls, 1);
+  await delay(80);                  // the hung ask times out
+  hang = false;
+  clock += 60000;                   // a minute after it gave up
+  cache.get('nh-1', []); await cache.refresh();
+  assert.equal(calls, 2);
+  assert.deepEqual(cache.get('nh-1', []), ['did:key:a']);
+  clock += 4000; cache.get('nh-1', []);
+  assert.equal(calls, 2);
+  // A join marks it stale: the next poll asks again.
+  cache.stale(); answer = ['did:key:a', 'did:key:b'];
+  cache.get('nh-1', []); await cache.refresh();
+  assert.equal(calls, 3);
+  assert.deepEqual(cache.get('nh-1', []), ['did:key:a', 'did:key:b']);
+  // Another space starts empty, not with the old space's members.
+  assert.deepEqual(cache.get('nh-2', []), []);
+  await cache.refresh();
+  assert.equal(calls, 4);
 });

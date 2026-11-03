@@ -21,7 +21,7 @@ import { platform, arch } from 'node:os';
 import { Ad4mClient, PerspectiveProxy, FlowInstance, SHACLFlow } from '@coasys/ad4m';
 import * as demo from './demo.mjs';
 import * as requester from './requester.mjs';
-import { ROOT, STATE, NS, FLOW, shortId, readJson, saveJson, stateDir, loadOrCreateKey } from './common.mjs';
+import { ROOT, STATE, NS, FLOW, shortId, readJson, saveJson, stateDir, loadOrCreateKey, backgroundCache } from './common.mjs';
 
 const UI_PORT = Number(process.env.UI_PORT ?? 8740);
 const SETTINGS_PATH = resolve(ROOT, '.ui-settings.json');
@@ -385,12 +385,16 @@ const sentPath = taskId => resolve(STATE, 'requester-sent', shortId(taskId) + '.
 const responsePath = taskId => resolve(ROOT, 'out/response-' + shortId(taskId) + '.json');
 // Who is in the space: the people on this node in it, plus (shared space) the other agents the
 // link language knows. "Member" only: nothing here says whether they are online now.
-async function members(client, p, s) {
+// The other agents come from a cache: neighbourhood.otherAgents() waits for the link language, and
+// the page asks for the runs every 4 s. It is asked again every 60 s, after a join or share, and
+// when the Refresh button asks for it. Outside the request's trace: nobody clicked for it.
+const otherAgents = backgroundCache(() => trace.exit(() => demo.openAs(viewer(), ({ client, p }) => client.neighbourhood.otherAgents(p.uuid))));
+function members(s, fresh) {
   const people = readPeople();
   const list = Object.keys(s.uuids).map(name => ({ name, did:people[name]?.did ?? null, here:true }));
   if (s.neighbourhood) {
-    const others = await client.neighbourhood.otherAgents(p.uuid).catch(() => []);
-    for (const did of others) if (!list.some(m => m.did === did)) list.push({ name:nameOf(did), did, here:false });
+    if (fresh) otherAgents.stale();
+    for (const did of otherAgents.get(s.neighbourhood, [])) if (!list.some(m => m.did === did)) list.push({ name:nameOf(did), did, here:false });
   }
   return list;
 }
@@ -497,7 +501,11 @@ const routes = {
     if (!existsSync(spacePath)) await demo.makeSpace({ as:as || undefined, bare:true });
     return demo.share({ link, 'server-url':serverUrl || undefined });
   },
-  'POST /api/space/join': ({ url, as }) => demo.join(String(url ?? '').trim(), { as:as || undefined, wait:30 }),
+  async 'POST /api/space/join'({ url, as }) {
+    const joined = await demo.join(String(url ?? '').trim(), { as:as || undefined, wait:30 });
+    otherAgents.stale();
+    return joined;
+  },
 
   // Step 6: the trust task and the flow.
   'GET /api/flow/definition': () => { const { header, rows, flow } = demo.show(); return { header, rows, flow }; },
@@ -533,10 +541,10 @@ const routes = {
   },
 
   // Step 7: the flow runs and the votes.
-  async 'GET /api/runs'() {
-    const s = space();
+  async 'GET /api/runs'(_body, query) {
+    const s = space(), fresh = query.get('fresh') === '1';
     return demo.openAs(viewer(), async ({ client, p }) => {
-      if (!await demo.hasSocialDna(p)) return { runs:[], installed:false, voters:Object.keys(s.uuids), owner:s.owner, members:await members(client, p, s) };
+      if (!await demo.hasSocialDna(p)) return { runs:[], installed:false, voters:Object.keys(s.uuids), owner:s.owner, members:members(s, fresh) };
       const requests = await demo.RequestModel.findAll(p);
       const runs = await FlowInstance.findAll(p, { flowName:'TrustTaskDecision' });
       const states = runs.length ? await p.flowStates(runs.map(run => run.uri)) : [];
@@ -555,7 +563,7 @@ const routes = {
           responded:!!response, responseKind:response?.kind ?? null });
       }
       out.sort((a, b) => (a.issuedAt ?? '') < (b.issuedAt ?? '') ? 1 : -1);
-      return { runs:out, installed:true, voters:Object.keys(s.uuids), owner:s.owner, members:await members(client, p, s) };
+      return { runs:out, installed:true, voters:Object.keys(s.uuids), owner:s.owner, members:members(s, fresh) };
     });
   },
   'POST /api/vote': ({ action, as, taskId, why }) => demo.vote(action, as, { task:taskId, why:why || undefined }),
