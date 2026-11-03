@@ -103,7 +103,12 @@
 <section class="step" id="s3" data-n="3">
   <h2><span class="n">3</span> The node's agent, and people on it</h2>
   <p>An AD4M agent is a key pair and a <code>did:key</code>. Everything the agent writes is signed with that key. A new node has no agent yet: you create one and protect it with a passphrase. After every restart the agent is locked, and you unlock it with the same passphrase.</p>
-  <div class="learn-row"><a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-3" target="_blank" rel="noopener">▶ Film: Your identity <span class="len">2:25</span></a> <a class="lbtn doc" href="https://docs.ad4m.dev/agents" target="_blank" rel="noopener">Read: Agents in the docs</a></div>
+  <div class="learn-row"><a class="lbtn" href="https://coasys.org/ad4m#film-ad4m-3" target="_blank" rel="noopener">▶ Film: Your identity, what comes next <span class="len">2:25</span></a> <a class="lbtn doc" href="https://docs.ad4m.dev/agents" target="_blank" rel="noopener">Read: Agents in the docs</a></div>
+  <div class="id-note">
+    <p><b>Identity today and next.</b> The agents in this demo use <code>did:key</code>, which is what AD4M v0.13.1 ships. Next comes <code>did:scid:coasys:1</code>: your DID is the fingerprint of the first event in a signed key log, so it stays the same while you rotate the master key and add or revoke devices. The master key comes from 12 words. The film above shows this.</p>
+    <p>It uses KERI's rules (a current key and a committed next key, so the current key alone cannot rotate) in the encoding the web already reads, as did:webvh does (JCS, SHA-256 multihash, multikeys, Data Integrity proofs). Unlike KERI it has no witnesses and no consensus: any host can serve a log, and anyone can check it without trusting that host. Unlike did:webvh, a device key joins by an offer and a claim, and only the 12 words hold the next master key.</p>
+    <p class="small muted">In review as coasys/ad4m #1539–#1542, not in v0.13.1. <a href="https://github.com/coasys/ad4m/blob/identity/core/docs-src/identity/did-scid-coasys-1.md" target="_blank" rel="noopener">Read the spec</a> · <a href="https://github.com/coasys/ad4m/pull/1539" target="_blank" rel="noopener">PR #1539</a></p>
+  </div>
   <div id="agent-box"></div>
   <div id="users-box" class="sub">
     <h3>A second person on this node</h3>
