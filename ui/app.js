@@ -59,7 +59,7 @@ function wireGroup(what, rows, remote) {
   const group = document.createElement('div');
   group.className = 'wgroup' + (remote ? ' remote' : '');
   const calls = rows.filter(r => r.kind === 'call').length;
-  group.innerHTML = '<p class="what">' + esc(what) + (calls ? '<span class="count">' + calls + ' call' + (calls === 1 ? '' : 's') + '</span>' : '') + '</p>' + rows.map((r, i) => '<div class="wrow ' + r.kind + '" style="animation-delay:' + (i * 0.16) + 's" title="Click to see it all">'
+  group.innerHTML = '<p class="what"><span>' + esc(what) + '</span>' + (calls ? '<span class="count">' + calls + ' call' + (calls === 1 ? '' : 's') + '</span>' : '') + '</p>' + rows.map((r, i) => '<div class="wrow ' + r.kind + '" style="animation-delay:' + (i * 0.16) + 's" title="Click to see it all">'
     + (r.ms !== undefined ? '<span class="ms">' + r.ms + ' ms</span>' : '') + '<span class="t">' + esc(r.text) + '</span></div>').join('');
   group.querySelectorAll('.wrow').forEach(row => { row.onclick = () => row.classList.toggle('open'); });
   // An older group folds to its one line; click it to see its calls again.
@@ -81,7 +81,8 @@ const remote = (what, text) => wireGroup('From another node', [{ kind:'remote', 
 
 // ── Who you are, and which steps that needs ─────────────────────────────────────
 const PATHS = { host:[1, 2, 3, 4, 5, 6, 7, 8], 'join-here':[1, 7, 8], 'join-own':[1, 2, 3, 4, 5, 7, 8] };
-const role = () => S?.settings.role ?? null;
+// Kept in this browser, not on the server: two people on one computer each pick their own part.
+const role = () => localStorage.getItem('iiw-role') || null;
 const path = () => PATHS[role()] ?? PATHS.host;
 const me = () => localStorage.getItem('iiw-me') || null;
 let current = Number(localStorage.getItem('iiw-step')) || 1;
@@ -96,9 +97,10 @@ function showStep(n) {
 function move(delta) { const p = path(), i = p.indexOf(current); showStep(p[Math.min(p.length - 1, Math.max(0, i + delta))]); }
 $('btn-back').onclick = () => move(-1);
 $('btn-next').onclick = () => move(1);
-async function setRole(value) {
-  await act(null, 's1', value ? 'I note who you are: ' + ({ host:'starting the demo', 'join-here':'joining on this computer', 'join-own':'joining with your own node' })[value] : 'Choose again', 'POST', '/api/role', { role:value });
-  $('fork-join-how').classList.add('hidden');
+function setRole(value) {
+  if (value) localStorage.setItem('iiw-role', value); else localStorage.removeItem('iiw-role');
+  $('fork-join-how').classList.add('hidden'); $('fork-join').classList.remove('on');
+  showStep(1);
 }
 document.querySelectorAll('[data-role]').forEach(b => { b.onclick = () => setRole(b.dataset.role); });
 $('fork-join').onclick = () => { $('fork-join-how').classList.toggle('hidden'); $('fork-join').classList.toggle('on'); };
@@ -165,6 +167,7 @@ function render() {
 function renderRole() {
   const r = role();
   $('fork').classList.toggle('hidden', !!r);
+  $('s1-intro').classList.toggle('hidden', !!r);
   if (r) $('fork-join-how').classList.add('hidden');
   $('role-line').classList.toggle('hidden', !r);
   if (r) {
@@ -504,7 +507,7 @@ function noticeRemote(result) {
   if (!before || !shared) return;
   for (const did of now.members) if (!before.members.has(did)) remote('a member joined the space: ' + short(did), 'seen with neighbourhood.otherAgents()');
   for (const run of now.runs) if (!before.runs.has(run) && !S.space.owner) remote('a trust task and its flow run arrived', 'seen with FlowInstance.findAll()');
-  for (const v of now.votes) if (!before.votes.has(v)) remote('a signed vote arrived (' + v.split(/(Accepted|Rejected)$/)[1] + ')', 'seen with run.proposals()');
+  for (const v of now.votes) if (!before.votes.has(v)) remote('a vote arrived: ' + v.split(/(Accepted|Rejected)$/)[1], 'seen with run.proposals()');
   for (const [run, state] of Object.entries(now.states))
     if (before.states[run] && before.states[run] !== state && Date.now() - memo.lastClick > 4000) remote('flow state ' + before.states[run] + ' → ' + state, 'seen with space.flowStates()');
 }
@@ -618,8 +621,9 @@ const OPEN = { 1:['node'], 2:['node'], 3:['node', 'people'], 4:['apps'], 5:['spa
 const userOpen = {};
 function card(key, colour, sum, body, source) {
   const el = $('card-' + key);
-  const open = userOpen[key] ?? OPEN[current].includes(key);
-  const cls = 'card ' + colour + (OPEN[current].includes(key) ? ' lit' : '') + (open ? '' : ' shut');
+  const lit = OPEN[current].includes(key) || (current === 1 && role() === 'join-here' && key === 'people');
+  const open = userOpen[key] ?? lit;
+  const cls = 'card ' + colour + (lit ? ' lit' : '') + (open ? '' : ' shut');
   if (el.className.replace(' pulse', '') !== cls) el.className = cls + (el.classList.contains('pulse') ? ' pulse' : '');
   const head = el.querySelector('.sum');
   if (head.dataset.html !== sum) { head.innerHTML = sum; head.dataset.html = sum; }
@@ -670,7 +674,7 @@ function renderPanel() {
   const members = memo.members ?? (sp ? Object.keys(sp.uuids).map(name => ({ name, did:S.people[name]?.did, here:true })) : []);
   card('space', 'mint', sp ? (sp.neighbourhood ? 'shared' + (sp.link ? ' · ' + (sp.link === 'server' ? 'link server' : 'Holochain') : '') : 'only on this node') : 'none yet',
     sp ? '<p><b>IIW trust tasks</b> · ' + members.length + ' member' + (members.length === 1 ? '' : 's') + '</p><ul class="plist">'
-      + members.map(m => '<li><span class="nm">' + esc(m.name ?? 'someone') + '</span><code>' + esc(short(m.did)) + '</code><span class="tag' + (m.here ? '' : ' mint') + '">' + (m.here ? 'member' : 'member, another node') + '</span></li>').join('') + '</ul>'
+      + members.map(m => '<li><span class="nm">' + esc(m.name ?? 'agent') + '</span><code>' + esc(short(m.did)) + '</code><span class="tag' + (m.here ? '' : ' mint') + '">' + (m.here ? 'member' : 'member, another node') + '</span></li>').join('') + '</ul>'
       + (sp.neighbourhood ? '<p class="small muted">' + esc(sp.neighbourhood.slice(0, 34)) + '…</p>' : '')
     : '<p class="muted">No space yet (step 5).</p>', sp?.neighbourhood ? 'neighbourhood.otherAgents()' : 'perspective.byUUID()');
   // Flow

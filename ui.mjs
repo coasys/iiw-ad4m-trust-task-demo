@@ -35,10 +35,8 @@ const tokenPath = resolve(STATE, 'app-token');
 // v0.13.1, or its last staging build while the release is not out. AD4M_RELEASE_TAGS overrides.
 const RELEASE_TAGS = (process.env.AD4M_RELEASE_TAGS ?? 'v0.13.1,v0.13.1-staging.6').split(',').map(t => t.trim()).filter(Boolean);
 
-// ── Settings: which executor, which port, and who you are in the demo ──────────
-// role: 'host' (starts the demo), 'join-here' (a second person on this computer's node),
-// 'join-own' (a second person with their own node), or null (not chosen yet).
-const defaults = { executor:process.env.AD4M_EXECUTOR ?? '', port:Number(process.env.AD4M_PORT ?? 12100), role:null };
+// ── Settings: which executor, which port ────────────────────────────────────────
+const defaults = { executor:process.env.AD4M_EXECUTOR ?? '', port:Number(process.env.AD4M_PORT ?? 12100) };
 let settings = { ...defaults, ...(existsSync(SETTINGS_PATH) ? readJson(SETTINGS_PATH) : {}) };
 const saveSettings = () => saveJson(SETTINGS_PATH, settings);
 const nodeUrl = () => 'http://127.0.0.1:' + settings.port;
@@ -406,11 +404,6 @@ const routes = {
     return { path, version:check.version };
   },
   'POST /api/node/start': body => startNode(body),
-  'POST /api/role'({ role }) {
-    if (![null, 'host', 'join-here', 'join-own'].includes(role ?? null)) throw new Error('Unknown role');
-    settings.role = role ?? null; saveSettings();
-    return { role:settings.role };
-  },
   // The People card's switch. The answer is what the node says afterwards, not what was asked.
   async 'POST /api/multiuser'({ on }) {
     return asAdmin(async admin => {
