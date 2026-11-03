@@ -529,6 +529,8 @@ function renderRuns(voters) {
       + '<div class="votes small">' + (run.votes.length ? 'Votes so far: ' + run.votes.map(v => '<b>' + esc(v.name ?? short(v.voter) + ' (another node)') + '</b> → ' + esc(v.toState)).join(', ') : 'No votes yet.') + '</div>'
       + (run.state === 'Received' ? voters.map(name => {
         const mine = votedFor(run, name);
+        // Joining on this computer: you vote as yourself; the others vote in their own browser.
+        if (who && name !== who) return '<div class="vote-row"><span class="name">' + esc(name) + '</span><span class="muted small">' + (mine ? 'voted ' + esc(mine.toState) : 'votes in their own browser') + '</span></div>';
         return '<div class="vote-row"><span class="name">' + esc(name) + (name === who ? ' (you)' : '') + '</span>' + (mine ? '<span class="muted small">voted ' + esc(mine.toState) + '</span>'
           : '<input data-why="' + esc(run.taskId + name) + '" placeholder="why (optional)" size="18">'
           + '<button data-vote="accept" data-as="' + esc(name) + '" data-task="' + esc(run.taskId) + '">Accept</button>'
